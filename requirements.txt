@@ -1,6 +1,7 @@
 langchain
-chromadb
+langchain-community
+langchain-openai
 pymupdf
 pdfplumber
-langchain-openai
 python-dotenv
+faiss-cpu
