@@ -1,0 +1,6 @@
+langchain
+chromadb
+pymupdf
+pdfplumber
+langchain-openai
+python-dotenv
