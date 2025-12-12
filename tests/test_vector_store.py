@@ -6,7 +6,8 @@ from langchain_core.documents import Document
 from src.rag.vector_store import RAGPipeline
 
 class TestRAGPipeline(unittest.TestCase):
-    def setUp(self):
+    @patch("src.rag.vector_store.GoogleGenerativeAIEmbeddings")
+    def setUp(self, MockEmbeddings):
         self.rag = RAGPipeline()
 
     @patch("src.rag.vector_store.FAISS")
