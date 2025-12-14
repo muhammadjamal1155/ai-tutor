@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, User, Bot, Loader2, Plus } from 'lucide-react';
+import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -11,15 +11,60 @@ interface Message {
   content: string;
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+}
+
 export default function Home() {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: 'Hello! I am your AI Tutor. How can I help you today?' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load sessions from localStorage on mount
+  useEffect(() => {
+    const savedSessions = localStorage.getItem('chatSessions');
+    if (savedSessions) {
+      const parsed = JSON.parse(savedSessions);
+      setSessions(parsed.map((s: ChatSession) => ({ ...s, createdAt: new Date(s.createdAt) })));
+    }
+  }, []);
+
+  // Save sessions to localStorage whenever they change
+  useEffect(() => {
+    if (sessions.length > 0) {
+      localStorage.setItem('chatSessions', JSON.stringify(sessions));
+    }
+  }, [sessions]);
+
+  // Update current session's messages
+  useEffect(() => {
+    if (currentSessionId && messages.length > 1) {
+      setSessions(prev => prev.map(session => 
+        session.id === currentSessionId 
+          ? { ...session, messages, title: getSessionTitle(messages) }
+          : session
+      ));
+    }
+  }, [messages, currentSessionId]);
+
+  const getSessionTitle = (msgs: Message[]): string => {
+    const firstUserMessage = msgs.find(m => m.role === 'user');
+    if (firstUserMessage) {
+      return firstUserMessage.content.slice(0, 30) + (firstUserMessage.content.length > 30 ? '...' : '');
+    }
+    return 'New Chat';
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,6 +73,37 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const createNewChat = () => {
+    const newSession: ChatSession = {
+      id: Date.now().toString(),
+      title: 'New Chat',
+      messages: [{ role: 'assistant', content: 'Hello! I am your AI Tutor. How can I help you today?' }],
+      createdAt: new Date()
+    };
+    setSessions(prev => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setMessages(newSession.messages);
+  };
+
+  const selectSession = (session: ChatSession) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages);
+  };
+
+  const deleteSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+      setMessages([{ role: 'assistant', content: 'Hello! I am your AI Tutor. How can I help you today?' }]);
+    }
+    // Update localStorage
+    const remaining = sessions.filter(s => s.id !== sessionId);
+    if (remaining.length === 0) {
+      localStorage.removeItem('chatSessions');
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -66,10 +142,22 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Create a new session if none exists
+      if (!currentSessionId) {
+        const newSession: ChatSession = {
+          id: Date.now().toString(),
+          title: userMessage.slice(0, 30) + (userMessage.length > 30 ? '...' : ''),
+          messages: [...messages, { role: 'user', content: userMessage }],
+          createdAt: new Date()
+        };
+        setSessions(prev => [newSession, ...prev]);
+        setCurrentSessionId(newSession.id);
+      }
+
       // Call through the Next.js rewrite proxy
       const response = await axios.post('/api/chat', {
         message: userMessage,
-        session_id: "web-user-1" // Static session for now
+        session_id: currentSessionId || "web-user-1"
       });
 
       setMessages(prev => [...prev, { role: 'assistant', content: response.data.answer }]);
@@ -82,18 +170,69 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-gray-100">
-      {/* Header */}
-      <header className="p-4 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
-          <div className="p-2 bg-blue-600 rounded-lg">
-            <Bot className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex-1">
-            AI Personal Tutor
-          </h1>
+    <div className="flex h-screen bg-gray-900 text-gray-100">
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-gray-950 border-r border-gray-800 flex flex-col overflow-hidden`}>
+        <div className="p-3 border-b border-gray-800">
+          <button
+            onClick={createNewChat}
+            className="w-full flex items-center gap-2 p-3 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white font-medium"
+          >
+            <Plus className="w-5 h-5" />
+            New Chat
+          </button>
         </div>
-      </header>
+        
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {sessions.map(session => (
+            <div
+              key={session.id}
+              onClick={() => selectSession(session)}
+              className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+                currentSessionId === session.id
+                  ? 'bg-gray-800 border border-gray-700'
+                  : 'hover:bg-gray-800/50'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="flex-1 text-sm truncate text-gray-300">{session.title}</span>
+              <button
+                onClick={(e) => deleteSession(session.id, e)}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
+              >
+                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
+              </button>
+            </div>
+          ))}
+          {sessions.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-4">No chat history</p>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="p-4 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-800 rounded-lg transition-colors mr-2"
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="w-5 h-5 text-gray-400" />
+              ) : (
+                <PanelLeft className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex-1">
+              AI Personal Tutor
+            </h1>
+          </div>
+        </header>
 
       {/* Chat Area */}
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -200,6 +339,7 @@ export default function Home() {
           </p>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
