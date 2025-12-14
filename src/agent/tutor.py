@@ -103,6 +103,52 @@ class TutorAgent:
         )
         print("Retriever refreshed successfully.")
 
+    def search_documents(self, query: str, k: int = 5) -> str:
+        """
+        Search documents without using the LLM (fallback when quota exceeded).
+        Returns formatted document excerpts relevant to the query.
+        """
+        try:
+            docs = self.retriever.invoke(query)
+            if not docs:
+                return "No relevant information found in the uploaded documents. Please upload a document first or try a different question."
+            
+            # Remove duplicates based on content
+            seen_content = set()
+            unique_docs = []
+            for doc in docs:
+                content_hash = doc.page_content.strip()[:200]  # Use first 200 chars as fingerprint
+                if content_hash not in seen_content:
+                    seen_content.add(content_hash)
+                    unique_docs.append(doc)
+            
+            if not unique_docs:
+                return "No relevant information found in the uploaded documents."
+            
+            # Format the results nicely
+            results = []
+            results.append("📚 **Found relevant information from your documents:**\n")
+            
+            for i, doc in enumerate(unique_docs[:k], 1):
+                source = doc.metadata.get('source', 'Unknown document')
+                # Get just the filename
+                if '/' in source or '\\' in source:
+                    source = source.replace('\\', '/').split('/')[-1]
+                
+                content = doc.page_content.strip()
+                # Truncate if too long
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                
+                results.append(f"**📄 Source {i}: {source}**")
+                results.append(f"> {content}\n")
+            
+            results.append("\n---\n*⚠️ This response is from document search only (AI is currently unavailable due to quota limits). The AI will provide better explanations when available.*")
+            
+            return "\n".join(results)
+        except Exception as e:
+            return f"Error searching documents: {str(e)}"
+
 if __name__ == "__main__":
     tutor = TutorAgent()
     session_id = "test_user_lcel"

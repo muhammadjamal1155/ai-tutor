@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2, CheckCircle, XCircle, X, FileText, Search, Library, SquarePen, ChevronDown, ChevronRight, Mic, ArrowUp } from 'lucide-react';
+import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2, CheckCircle, XCircle, X, FileText, Search, Library, SquarePen, ChevronDown, ChevronRight, Mic, ArrowUp, Sparkles, BookOpen } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -52,6 +52,8 @@ export default function Home() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [useAI, setUseAI] = useState(true);  // Toggle for AI mode vs Document-only mode
+  const [responseMode, setResponseMode] = useState<'ai' | 'document_only'>('ai');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -261,8 +263,18 @@ export default function Home() {
       // Call through the Next.js rewrite proxy
       const response = await axios.post('/api/chat', {
         message: userMessage || `Please analyze and summarize the document: ${attachment?.name}`,
-        session_id: currentSessionId || "web-user-1"
+        session_id: currentSessionId || "web-user-1",
+        use_ai: useAI  // Pass the AI mode toggle
       });
+
+      // Track the response mode (AI or document-only fallback)
+      if (response.data.mode) {
+        setResponseMode(response.data.mode);
+        if (response.data.mode === 'document_only' && useAI) {
+          // AI was requested but fell back to document mode (quota exceeded)
+          showToast('error', 'AI quota exceeded. Showing document results instead.');
+        }
+      }
 
       setMessages(prev => [...prev, { role: 'assistant', content: response.data.answer }]);
     } catch (error) {
@@ -543,6 +555,31 @@ export default function Home() {
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex-1">
               AI Personal Tutor
             </h1>
+            
+            {/* AI Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUseAI(!useAI)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  useAI 
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+                title={useAI ? 'AI Mode: Using AI for answers' : 'Document Mode: Searching documents only'}
+              >
+                {useAI ? (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>AI Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="w-4 h-4" />
+                    <span>Docs Only</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </header>
 

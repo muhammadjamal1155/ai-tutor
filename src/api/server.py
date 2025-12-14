@@ -19,9 +19,11 @@ init_error = None
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default_session"
+    use_ai: bool = True  # Toggle for AI mode vs Document-only mode
 
 class ChatResponse(BaseModel):
     answer: str
+    mode: str = "ai"  # "ai" or "document_only"
 
 @app.on_event("startup")
 async def startup_event():
@@ -51,20 +53,42 @@ async def health_check():
 async def chat(request: ChatRequest):
     """
     Chat endpoint to interact with the AI Tutor.
+    Supports AI mode and document-only mode (fallback).
     """
     global tutor_agent
     
     if not tutor_agent:
-        # Try one more time (lazy load) if it failed before? No, simpler to just report error.
         detail_msg = f"Tutor Agent is not initialized. Error: {init_error}"
         raise HTTPException(status_code=503, detail=detail_msg)
     
+    # If user explicitly wants document-only mode
+    if not request.use_ai:
+        try:
+            response = tutor_agent.search_documents(request.message)
+            return ChatResponse(answer=response, mode="document_only")
+        except Exception as e:
+            print(f"Error in document search: {e}")
+            raise HTTPException(status_code=500, detail=f"Document search failed: {str(e)}")
+    
+    # Try AI mode first
     try:
         response = tutor_agent.ask(request.message, session_id=request.session_id)
-        return ChatResponse(answer=response)
+        return ChatResponse(answer=response, mode="ai")
     except Exception as e:
+        error_str = str(e)
         print(f"Error processing chat request: {e}")
         traceback.print_exc()
+        
+        # Check if it's a quota error - fallback to document search
+        if "RESOURCE_EXHAUSTED" in error_str or "429" in error_str or "quota" in error_str.lower():
+            print("AI quota exceeded, falling back to document search...")
+            try:
+                fallback_response = tutor_agent.search_documents(request.message)
+                return ChatResponse(answer=fallback_response, mode="document_only")
+            except Exception as fallback_error:
+                print(f"Fallback also failed: {fallback_error}")
+                raise HTTPException(status_code=500, detail=f"Both AI and fallback failed: {str(e)}")
+        
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @app.post("/upload")
