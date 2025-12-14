@@ -46,10 +46,10 @@ else:
 
 class Config:
     GOOGLE_API_KEY = key
-    DATA_DIR = os.path.join(os.getcwd(), "data")
-    RAW_PDFS_DIR = os.path.join(DATA_DIR, "raw_pdfs")
-    PROCESSED_TEXT_DIR = os.path.join(DATA_DIR, "processed_text")
-    EMBEDDINGS_DIR = os.path.join(DATA_DIR, "embeddings")
+    DATA_DIR = BASE_DIR / "data"
+    RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
+    PROCESSED_TEXT_DIR = DATA_DIR / "processed_text"
+    EMBEDDINGS_DIR = DATA_DIR / "embeddings"
     
     # Model Config
     MODEL_NAME = "gemini-2.5-flash"

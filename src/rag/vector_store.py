@@ -17,7 +17,7 @@ class RAGPipeline:
             chunk_overlap=200,
             add_start_index=True,
         )
-        self.vector_store_path = os.path.join(config.EMBEDDINGS_DIR, "faiss_index")
+        self.vector_store_path = str(config.EMBEDDINGS_DIR / "faiss_index")
         self.vector_store = None
 
     def create_index(self, documents: List[Document]):
