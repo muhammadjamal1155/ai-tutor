@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2, CheckCircle, XCircle, X, FileText, Search, Library, SquarePen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2, CheckCircle, XCircle, X, FileText, Search, Library, SquarePen, ChevronDown, ChevronRight, Mic, ArrowUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -359,7 +359,7 @@ export default function Home() {
                   return session.title;
                 };
                 
-                const highlightMatch = (text: string): JSX.Element => {
+                const highlightMatch = (text: string): React.ReactElement => {
                   if (!searchQuery.trim()) return <>{text}</>;
                   const query = searchQuery.toLowerCase();
                   const idx = text.toLowerCase().indexOf(query);
@@ -616,29 +616,7 @@ export default function Home() {
       {/* Input Area */}
       <footer className="p-4 border-t border-gray-800 bg-gray-900 sticky bottom-0">
         <div className="max-w-4xl mx-auto">
-          {/* Pending Attachment Preview */}
-          {pendingAttachment && (
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg">
-                <div className="p-1.5 bg-rose-500 rounded">
-                  <FileText className="w-4 h-4 text-white" />
-                </div>
-                <div className="text-sm">
-                  <p className="text-gray-100 font-medium">{pendingAttachment.name}</p>
-                  <p className="text-gray-400 text-xs uppercase">{pendingAttachment.type}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={removePendingAttachment}
-                  className="ml-1 p-1 hover:bg-gray-600 rounded transition-colors"
-                >
-                  <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                </button>
-              </div>
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="relative">
+          <form onSubmit={handleSubmit}>
             <input
               type="file"
               ref={fileInputRef}
@@ -647,40 +625,77 @@ export default function Home() {
               accept=".pdf"
             />
 
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={pendingAttachment ? "Ask a question about this document..." : "Ask a question..."}
-              className="w-full p-4 pl-12 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-500"
-              disabled={isLoading}
-            />
-
-            {/* Left: Upload Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isLoading}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
-              title="Upload PDF"
-            >
-              {isUploading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-              ) : (
-                <Plus className="w-5 h-5" />
+            <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden focus-within:border-gray-600 transition-all">
+              {/* Pending Attachment Preview - Inside Input */}
+              {pendingAttachment && (
+                <div className="px-4 pt-4">
+                  <div className="inline-flex items-center gap-3 px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl">
+                    <div className="p-2 bg-rose-500 rounded-lg">
+                      <FileText className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-sm">
+                      <p className="text-gray-100 font-medium">{pendingAttachment.name}</p>
+                      <p className="text-gray-500 text-xs uppercase">{pendingAttachment.type}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removePendingAttachment}
+                      className="p-1 hover:bg-gray-700 rounded-full transition-colors"
+                    >
+                      <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                    </button>
+                  </div>
+                </div>
               )}
-            </button>
 
-            {/* Right: Send Button */}
-            <button
-              type="submit"
-              disabled={(!input.trim() && !pendingAttachment) || isLoading}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
-            >
-              <Send className="w-5 h-5" />
-            </button>
+              {/* Input Row */}
+              <div className="flex items-center gap-2 p-2">
+                {/* Left: Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading || isLoading}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                  title="Upload PDF"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                  ) : (
+                    <Plus className="w-5 h-5" />
+                  )}
+                </button>
+
+                {/* Text Input */}
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask anything"
+                  className="flex-1 py-2 px-2 bg-transparent outline-none placeholder:text-gray-500 text-white"
+                  disabled={isLoading}
+                />
+
+                {/* Right: Mic Button */}
+                <button
+                  type="button"
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
+                  title="Voice input"
+                >
+                  <Mic className="w-5 h-5" />
+                </button>
+
+                {/* Right: Send Button */}
+                <button
+                  type="submit"
+                  disabled={(!input.trim() && !pendingAttachment) || isLoading}
+                  className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-white transition-colors flex-shrink-0"
+                >
+                  <ArrowUp className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </form>
-          <p className="text-center text-xs text-gray-500 mt-2">
+          <p className="text-center text-xs text-gray-500 mt-3">
             AI can make mistakes. Please verify important information.
           </p>
         </div>
