@@ -3,9 +3,14 @@ from pydantic import BaseModel
 from src.agent.tutor import TutorAgent
 import uvicorn
 import os
+import traceback
 
 # Initialize FastAPI app
 app = FastAPI(title="AI Tutor API", version="1.0.0")
+
+# Global State
+tutor_agent = None
+init_error = None
 
 # Request Models
 class ChatRequest(BaseModel):
@@ -15,33 +20,49 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
 
-# Global Agent Instance (Lazy loading or immediate)
-# We initialize it here so it persists across requests
-try:
-    tutor_agent = TutorAgent()
-    print("AI Tutor Agent initialized successfully.")
-except Exception as e:
-    print(f"Failed to initialize Tutor Agent: {e}")
-    tutor_agent = None
+@app.on_event("startup")
+async def startup_event():
+    global tutor_agent, init_error
+    from src.config.settings import config
+    print(f"Server Startup. Using Key: {config.GOOGLE_API_KEY[:10]}...", flush=True)
+    print("Attempting to initialize Tutor Agent...", flush=True)
+    try:
+        tutor_agent = TutorAgent()
+        print("AI Tutor Agent initialized successfully.", flush=True)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {str(e)}"
+        print(f"CRITICAL ERROR: Failed to initialize Tutor Agent: {error_msg}", flush=True)
+        traceback.print_exc()
+        init_error = error_msg
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint to verify API is running."""
-    return {"status": "healthy", "agent_status": "ready" if tutor_agent else "failed"}
+    status = "ready" if tutor_agent else "failed"
+    return {
+        "status": status, 
+        "error": init_error
+    }
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
     Chat endpoint to interact with the AI Tutor.
     """
+    global tutor_agent
+    
     if not tutor_agent:
-        raise HTTPException(status_code=503, detail="Tutor Agent is not initialized.")
+        # Try one more time (lazy load) if it failed before? No, simpler to just report error.
+        detail_msg = f"Tutor Agent is not initialized. Error: {init_error}"
+        raise HTTPException(status_code=503, detail=detail_msg)
     
     try:
         response = tutor_agent.ask(request.message, session_id=request.session_id)
         return ChatResponse(answer=response)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error processing chat request: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 if __name__ == "__main__":
     # For debugging/development
