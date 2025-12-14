@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from src.agent.tutor import TutorAgent
+from src.ingest import ingest_data
 import uvicorn
 import os
+import shutil
 import traceback
 
 # Initialize FastAPI app
@@ -63,6 +66,48 @@ async def chat(request: ChatRequest):
         print(f"Error processing chat request: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+@app.post("/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """
+    Upload a PDF file, save it, and re-run ingestion.
+    """
+    global tutor_agent
+    
+    # 1. Validate File
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed.")
+    
+    # 2. Save File
+    from src.config.settings import config
+    save_path = os.path.join(config.RAW_PDFS_DIR, file.filename)
+    
+    try:
+        with open(save_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        print(f"File saved to: {save_path}")
+        
+        # 3. Release Locks & Trigger Ingestion
+        print("Releasing locks before ingestion...")
+        global tutor_agent
+        tutor_agent = None 
+        import gc
+        gc.collect()
+        
+        print("Triggering ingestion...")
+        ingest_data() 
+        
+        # 4. Reload Agent
+        print("Reloading Agent with new knowledge...")
+        tutor_agent = TutorAgent()
+        
+        return JSONResponse(content={"filename": file.filename, "message": "File uploaded and processed successfully. You can now chat regarding this document."})
+        
+    except Exception as e:
+        print(f"Error during upload/ingest: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 if __name__ == "__main__":
     # For debugging/development

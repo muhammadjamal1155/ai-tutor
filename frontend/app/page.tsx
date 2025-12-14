@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, User, Bot, Loader2 } from 'lucide-react';
+import { Send, User, Bot, Loader2, Plus } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -15,7 +17,9 @@ export default function Home() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,6 +28,33 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Uploading & analyzing ${file.name}... (This may take a moment)` }]);
+
+      await axios.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setMessages(prev => [...prev, { role: 'assistant', content: `✅ ${file.name} processed! I can now answer questions about it.` }]);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setMessages(prev => [...prev, { role: 'assistant', content: `❌ Failed to upload ${file.name}. Please try again.` }]);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +89,7 @@ export default function Home() {
           <div className="p-2 bg-blue-600 rounded-lg">
             <Bot className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex-1">
             AI Personal Tutor
           </h1>
         </div>
@@ -83,13 +114,23 @@ export default function Home() {
                   <Bot className="w-5 h-5 text-white" />
                 )}
               </div>
+
+
               <div
                 className={`p-4 rounded-2xl max-w-[80%] ${msg.role === 'user'
-                    ? 'bg-purple-600/20 border border-purple-500/30 rounded-tr-none'
-                    : 'bg-gray-800 border border-gray-700 rounded-tl-none'
+                  ? 'bg-purple-600/20 border border-purple-500/30 rounded-tr-none'
+                  : 'bg-gray-800 border border-gray-700 rounded-tl-none'
                   }`}
               >
-                <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                {msg.role === 'user' ? (
+                  <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                ) : (
+                  <div className="prose prose-invert prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -114,13 +155,38 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <form onSubmit={handleSubmit} className="relative">
             <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".pdf"
+            />
+
+            <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a question about your documents..."
-              className="w-full p-4 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-500"
+              placeholder="Ask a question..."
+              className="w-full p-4 pl-12 pr-12 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-500"
               disabled={isLoading}
             />
+
+            {/* Left: Upload Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isLoading}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              title="Upload PDF"
+            >
+              {isUploading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+              ) : (
+                <Plus className="w-5 h-5" />
+              )}
+            </button>
+
+            {/* Right: Send Button */}
             <button
               type="submit"
               disabled={!input.trim() || isLoading}

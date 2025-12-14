@@ -8,7 +8,10 @@ import os
 
 class RAGPipeline:
     def __init__(self):
-        self.embeddings = GoogleGenerativeAIEmbeddings(model=config.EMBEDDING_MODEL)
+        self.embeddings = GoogleGenerativeAIEmbeddings(
+            model=config.EMBEDDING_MODEL,
+            google_api_key=config.GOOGLE_API_KEY
+        )
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
