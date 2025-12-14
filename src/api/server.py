@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from src.agent.tutor import TutorAgent
-from src.ingest import ingest_data
+from src.ingest import ingest_data, ingest_single_file
 import uvicorn
 import os
 import shutil
@@ -70,7 +70,7 @@ async def chat(request: ChatRequest):
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     """
-    Upload a PDF file, save it, and re-run ingestion.
+    Upload a PDF file and add it to the knowledge base (fast incremental update).
     """
     global tutor_agent
     
@@ -88,21 +88,21 @@ async def upload_document(file: UploadFile = File(...)):
             
         print(f"File saved to: {save_path}")
         
-        # 3. Release Locks & Trigger Ingestion
-        print("Releasing locks before ingestion...")
-        global tutor_agent
-        tutor_agent = None 
-        import gc
-        gc.collect()
+        # 3. Fast incremental ingestion (only new file)
+        print("Starting fast incremental ingestion...")
+        success = ingest_single_file(save_path)
         
-        print("Triggering ingestion...")
-        ingest_data() 
+        if not success:
+            raise Exception("Failed to process document")
         
-        # 4. Reload Agent
-        print("Reloading Agent with new knowledge...")
-        tutor_agent = TutorAgent()
+        # 4. Reload Agent's retriever (lightweight reload)
+        print("Refreshing Agent's knowledge base...")
+        if tutor_agent:
+            tutor_agent.refresh_retriever()
+        else:
+            tutor_agent = TutorAgent()
         
-        return JSONResponse(content={"filename": file.filename, "message": "File uploaded and processed successfully. You can now chat regarding this document."})
+        return JSONResponse(content={"filename": file.filename, "message": "File uploaded and processed successfully."})
         
     except Exception as e:
         print(f"Error during upload/ingest: {e}")

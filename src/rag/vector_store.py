@@ -36,6 +36,34 @@ class RAGPipeline:
         self.vector_store.save_local(self.vector_store_path)
         print("Index saved successfully.")
 
+    def add_documents(self, documents: List[Document]):
+        """Add new documents to existing index (incremental update)."""
+        if not documents:
+            print("No documents to add.")
+            return False
+
+        print("Splitting new documents...")
+        splits = self.text_splitter.split_documents(documents)
+        
+        # Load existing index
+        if not self.vector_store:
+            loaded = self.load_index()
+            if not loaded:
+                # No existing index, create new one
+                print("No existing index, creating new...")
+                self.vector_store = FAISS.from_documents(documents=splits, embedding=self.embeddings)
+            else:
+                print(f"Adding {len(splits)} new chunks to existing index...")
+                self.vector_store.add_documents(splits)
+        else:
+            print(f"Adding {len(splits)} new chunks to existing index...")
+            self.vector_store.add_documents(splits)
+        
+        print("Saving updated index...")
+        self.vector_store.save_local(self.vector_store_path)
+        print("Index updated successfully.")
+        return True
+
     def load_index(self):
         """Loads the existing vector store index."""
         if os.path.exists(self.vector_store_path):

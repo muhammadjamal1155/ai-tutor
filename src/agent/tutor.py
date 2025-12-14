@@ -78,6 +78,31 @@ class TutorAgent:
         )
         return response_text
 
+    def refresh_retriever(self):
+        """Reload the retriever with updated index (after new document upload)."""
+        print("Refreshing retriever with updated knowledge base...")
+        self.rag = RAGPipeline()
+        self.retriever = self.rag.get_retriever()
+        
+        # Rebuild the chain with new retriever
+        rag_chain = (
+            RunnablePassthrough.assign(
+                context=lambda x: format_docs(self.retriever.invoke(x["input"]))
+            )
+            | self.prompt
+            | self.llm
+            | StrOutputParser()
+        )
+        
+        self.conversational_rag_chain = RunnableWithMessageHistory(
+            rag_chain,
+            self.memory_manager.get_session_history,
+            input_messages_key="input",
+            history_messages_key="chat_history",
+            output_messages_key="answer",
+        )
+        print("Retriever refreshed successfully.")
+
 if __name__ == "__main__":
     tutor = TutorAgent()
     session_id = "test_user_lcel"

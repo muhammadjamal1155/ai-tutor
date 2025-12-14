@@ -27,6 +27,23 @@ class PDFLoader:
         
         return documents
 
+    def load_single_file(self, file_path: str) -> List[Document]:
+        """Loads a single PDF file."""
+        documents = []
+        if not os.path.exists(file_path):
+            print(f"File not found: {file_path}")
+            return []
+
+        filename = os.path.basename(file_path)
+        print(f"Loading: {filename}")
+        try:
+            loader = PyMuPDFLoader(file_path)
+            documents = loader.load()
+        except Exception as e:
+            print(f"Error loading {filename}: {e}")
+        
+        return documents
+
 if __name__ == "__main__":
     # Test
     from src.config.settings import config
