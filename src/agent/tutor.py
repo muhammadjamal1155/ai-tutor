@@ -8,7 +8,14 @@ from src.rag.vector_store import RAGPipeline
 from src.memory.memory_manager import BaseMemoryManager, InMemoryHistoryManager
 
 def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    """Enhanced document formatting to preserve all content and improve comprehension."""
+    formatted_parts = []
+    for i, doc in enumerate(docs):
+        # Add document separator to help AI distinguish between different sources
+        source = doc.metadata.get('source', f'Document {i+1}')
+        formatted_parts.append(f"--- Source: {source} ---\n{doc.page_content}")
+    
+    return "\n\n".join(formatted_parts)
 
 class TutorAgent:
     def __init__(self, memory_manager: BaseMemoryManager = None):
@@ -18,17 +25,20 @@ class TutorAgent:
             google_api_key=config.GOOGLE_API_KEY
         )
         self.rag = RAGPipeline()
-        self.retriever = self.rag.get_retriever()
+        self.retriever = self.rag.get_retriever(k=12)  # Get more documents for comprehensive answers
         
         # Dependency Injection (DIP)
         self.memory_manager = memory_manager or InMemoryHistoryManager()
         
-        # System Prompt
+        # System Prompt (comprehensive with focus on listing all types/categories)
         system_prompt = (
-            "You are an expert AI Tutor designed to help students understand complex topics. "
-            "Use the following pieces of retrieved context to answer the question. "
-            "If the answer is not in the context, say that you don't have that information in your notes. "
-            "Keep your answer simple, clear, and focused on the student's question."
+            "You are an expert AI Tutor. Provide comprehensive answers based on the provided context. "
+            "IMPORTANT: When asked about types, categories, methods, or techniques, you MUST list ALL different types mentioned in the context. "
+            "Do not summarize - list each type separately with its description. "
+            "Use numbered lists or bullet points to clearly show all different types/categories. "
+            "If multiple types are mentioned across different parts of the context, include ALL of them. "
+            "If the answer isn't fully covered in the context, say what information you have available. "
+            "Be thorough and well-organized in your explanations."
             "\n\n"
             "Context:\n{context}"
         )
@@ -82,7 +92,7 @@ class TutorAgent:
         """Reload the retriever with updated index (after new document upload)."""
         print("Refreshing retriever with updated knowledge base...")
         self.rag = RAGPipeline()
-        self.retriever = self.rag.get_retriever()
+        self.retriever = self.rag.get_retriever(k=12)  # Get more documents for comprehensive answers
         
         # Rebuild the chain with new retriever
         rag_chain = (
@@ -103,27 +113,49 @@ class TutorAgent:
         )
         print("Retriever refreshed successfully.")
 
-    def search_documents(self, query: str, k: int = 5) -> str:
+    def search_documents(self, query: str, k: int = 8) -> str:
         """
         Search documents without using the LLM (fallback when quota exceeded).
-        Returns formatted document excerpts relevant to the query.
+        Enhanced to find comprehensive answers for types/categories questions.
         """
         try:
-            docs = self.retriever.invoke(query)
-            if not docs:
+            # For questions about types/categories, expand search terms
+            search_queries = [query]
+            
+            # If asking about types, add variations to capture more content
+            if any(word in query.lower() for word in ['types', 'kinds', 'categories', 'methods', 'techniques', 'approaches']):
+                base_term = query.lower()
+                # Extract the main concept
+                for word in ['types of', 'kinds of', 'categories of', 'methods of', 'techniques of']:
+                    if word in base_term:
+                        concept = base_term.split(word)[1].strip()
+                        search_queries.extend([
+                            concept,
+                            f"{concept} methods",
+                            f"{concept} techniques", 
+                            f"{concept} approaches",
+                            f"different {concept}",
+                            f"{concept} examples"
+                        ])
+                        break
+            
+            # Perform multiple searches and combine results
+            all_docs = []
+            seen_content = set()
+            
+            for search_query in search_queries:
+                docs = self.retriever.invoke(search_query)
+                for doc in docs:
+                    content_hash = doc.page_content.strip()[:200]  # Use first 200 chars as fingerprint
+                    if content_hash not in seen_content:
+                        seen_content.add(content_hash)
+                        all_docs.append(doc)
+            
+            if not all_docs:
                 return "No relevant information found in the uploaded documents. Please upload a document first or try a different question."
             
-            # Remove duplicates based on content
-            seen_content = set()
-            unique_docs = []
-            for doc in docs:
-                content_hash = doc.page_content.strip()[:200]  # Use first 200 chars as fingerprint
-                if content_hash not in seen_content:
-                    seen_content.add(content_hash)
-                    unique_docs.append(doc)
-            
-            if not unique_docs:
-                return "No relevant information found in the uploaded documents."
+            # Sort by relevance score (if available) and take top k*2 for comprehensive coverage
+            unique_docs = all_docs[:k*2]  # Get more docs for comprehensive answers
             
             # Format the results nicely
             results = []

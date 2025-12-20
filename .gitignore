@@ -16,3 +16,25 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# Data files - should not be in git
+data/raw_pdfs/
+data/processed_text/
+data/embeddings/
+
+# FAISS index files (large binary files)
+*.faiss
+*.pkl
+
+# Uploaded files
+uploads/
+
+# Logs
+*.log
+server_log.txt
+debug_output.txt
+test_output.txt
+
+# Models and temporary files
+models_list.txt
+valid_models.txt

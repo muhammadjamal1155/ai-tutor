@@ -75,7 +75,7 @@ class RAGPipeline:
             return True
         return False
 
-    def get_retriever(self, k=4):
+    def get_retriever(self, k=8):
         if not self.vector_store:
             loaded = self.load_index()
             if not loaded:

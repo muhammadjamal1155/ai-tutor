@@ -52,7 +52,7 @@ class Config:
     EMBEDDINGS_DIR = DATA_DIR / "embeddings"
     
     # Model Config
-    MODEL_NAME = "gemini-2.0-flash-lite"  # Using lite model for higher quota limits
+    MODEL_NAME = "gemini-2.5-flash"  # Latest stable Gemini model
     EMBEDDING_MODEL = "models/text-embedding-004"
 
 config = Config()
