@@ -4,7 +4,7 @@
 
 **A personalized AI Learning Tutor powered by RAG, Memory, and Agentic Planning**
 
-*Built with Google Gemini • LangChain • FAISS • Next.js*
+*Built with OpenAI (GPT-4o) • LangChain • FAISS • Next.js*
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
@@ -86,7 +86,7 @@ ai-tutor/
 
 - Python 3.10+
 - Node.js 18+
-- Google API Key ([Get one here](https://makersuite.google.com/app/apikey))
+- OpenAI API Key
 
 ### 1️⃣ Clone & Install
 
@@ -111,7 +111,7 @@ npm install
 Create a `.env` file in the root directory:
 
 ```env
-GOOGLE_API_KEY=your_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 ### 3️⃣ Build Knowledge Base
@@ -200,6 +200,6 @@ This project is open source and available under the [MIT License](LICENSE).
 
 <div align="center">
 
-**Made with ❤️ using Google Gemini & LangChain**
+**Made with ❤️ using OpenAI & LangChain**
 
 </div>

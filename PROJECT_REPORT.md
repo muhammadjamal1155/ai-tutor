@@ -2,7 +2,7 @@
 
 ## 📋 Project Overview
 
-The AI Personal Tutor is a sophisticated RAG (Retrieval-Augmented Generation) powered learning assistant that provides personalized tutoring based on uploaded PDF documents. The system combines Google's Gemini AI models with vector search capabilities to deliver context-aware, intelligent responses.
+The AI Personal Tutor is a sophisticated RAG (Retrieval-Augmented Generation) powered learning assistant that provides personalized tutoring based on uploaded PDF documents. The system combines OpenAI's GPT models with vector search capabilities to deliver context-aware, intelligent responses.
 
 ---
 
@@ -11,7 +11,7 @@ The AI Personal Tutor is a sophisticated RAG (Retrieval-Augmented Generation) po
 ### **Technology Stack**
 - **Backend**: Python 3.10+, FastAPI, LangChain
 - **Frontend**: Next.js 16, React 19, TypeScript, TailwindCSS
-- **AI Models**: Google Gemini 2.5 Flash, Text-Embedding-004
+- **AI Models**: OpenAI GPT-4o-mini, text-embedding-3-small
 - **Vector Database**: FAISS (Facebook AI Similarity Search)
 - **PDF Processing**: PyMuPDF (MuPDF)
 - **Memory Management**: In-memory conversation history
@@ -29,7 +29,7 @@ The project follows SOLID principles with:
 ### 1. **RAG Pipeline (`src/rag/vector_store.py`)**
 
 #### **Vector Search Model & Implementation**
-- **Embedding Model**: `models/text-embedding-004` (Google's latest text embedding model)
+- **Embedding Model**: `text-embedding-3-small` (OpenAI's latest efficient embedding model)
 - **Vector Database**: FAISS for efficient similarity search
 - **Search Algorithm**: Cosine similarity search with configurable K value (default: 8, expanded to 12 for comprehensive answers)
 
@@ -51,7 +51,7 @@ RecursiveCharacterTextSplitter(
 ### 2. **AI Agent (`src/agent/tutor.py`)**
 
 #### **Language Model Configuration**
-- **Model**: `gemini-2.5-flash` (Google's latest stable Gemini model)
+- **Model**: `gpt-4o-mini` (OpenAI's cost-effective reasoning model)
 - **Temperature**: 0.3 (balanced creativity vs consistency)
 - **Context Window**: Enhanced with 12 retrieved documents per query
 
@@ -173,15 +173,15 @@ class ChatResponse(BaseModel):
 ## 🔌 Configuration Management (`src/config/settings.py`)
 
 ### **Environment Configuration**
-- **API Keys**: Secure Google API key management
+- **API Keys**: Secure OpenAI API key management
 - **Model Selection**: Configurable AI models
 - **Data Paths**: Structured directory management
 - **Fallback Mechanisms**: Multiple key loading strategies
 
 ### **Key Settings**
 ```python
-MODEL_NAME = "gemini-2.5-flash"
-EMBEDDING_MODEL = "models/text-embedding-004"
+MODEL_NAME = "gpt-4o-mini"
+EMBEDDING_MODEL = "text-embedding-3-small"
 DATA_DIR = BASE_DIR / "data"
 RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
 EMBEDDINGS_DIR = DATA_DIR / "embeddings"
@@ -192,8 +192,8 @@ EMBEDDINGS_DIR = DATA_DIR / "embeddings"
 ## 📦 Dependencies & Requirements
 
 ### **Core AI Dependencies**
-- **LangChain Ecosystem**: Core framework, Google GenAI integration
-- **Google AI**: google-genai==1.55.0 for Gemini access
+- **LangChain Ecosystem**: Core framework, OpenAI integration
+- **OpenAI**: langchain-openai for GPT access
 - **FAISS**: faiss-cpu==1.13.1 for vector operations
 - **PyMuPDF**: PDF processing capabilities
 
@@ -252,7 +252,7 @@ User Query → Embedding → Vector Search → Document Retrieval → Content Fo
 - **Memory Usage**: Efficient in-memory vector storage
 
 ### **AI Performance**
-- **Model Capabilities**: Gemini 2.5 Flash provides state-of-the-art understanding
+- **Model Capabilities**: GPT-4o-mini provides state-of-the-art understanding
 - **Context Awareness**: Maintains conversation context across sessions
 - **Response Quality**: High-quality educational responses with proper citations
 - **Fallback Reliability**: Guaranteed response even during AI service interruptions
@@ -343,8 +343,8 @@ User Message → Session ID → Memory Store → Conversation History → Contex
 
 | Component | Technology | Version | Purpose |
 |-----------|------------|---------|---------|
-| AI Model | Gemini 2.5 Flash | Latest | Language understanding & generation |
-| Embeddings | text-embedding-004 | Latest | Document vectorization |
+| AI Model | GPT-4o-mini | Latest | Language understanding & generation |
+| Embeddings | text-embedding-3-small | Latest | Document vectorization |
 | Vector DB | FAISS | 1.13.1 | Similarity search |
 | Backend | FastAPI | Latest | REST API server |
 | Frontend | Next.js | 16.0.10 | User interface |
