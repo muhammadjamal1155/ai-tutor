@@ -38,7 +38,12 @@ class TutorAgent:
             "Use numbered lists or bullet points to clearly show all different types/categories. "
             "If multiple types are mentioned across different parts of the context, include ALL of them. "
             "If the answer isn't fully covered in the context, say what information you have available. "
-            "Be thorough and well-organized in your explanations."
+            "Be thorough and well-organized in your explanations.\n\n"
+            "SUMMARIZATION REQUESTS:\n"
+            "If the user asks for a summary of a document, format your response as follows:\n"
+            "1. **Key Concepts**: A bulleted list of the main ideas.\n"
+            "2. **Detailed Summary**: A comprehensive paragraph explaining the document's content.\n"
+            "3. **Key Takeaways**: A numbered list of the most important points."
             "\n\n"
             "Context:\n{context}"
         )

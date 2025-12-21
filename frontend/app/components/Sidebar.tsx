@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, PanelLeftClose, SquarePen, Search, Library, ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react';
+import { Bot, PanelLeftClose, SquarePen, Search, Library, ChevronDown, ChevronRight, FileText, Trash2, Sparkles } from 'lucide-react';
 import { ChatSession, UploadedPDF } from '../types';
 
 interface SidebarProps {
@@ -14,10 +14,11 @@ interface SidebarProps {
     uploadedPDFs: UploadedPDF[];
     selectPDFFromLibrary: (pdf: UploadedPDF) => void;
     deletePDF: (id: string, e: React.MouseEvent) => void;
+    onSummarize: (pdf: UploadedPDF, e: React.MouseEvent) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-    isOpen, setIsOpen, sessions, currentSessionId, createNewChat, selectSession, deleteSession, openSearch, uploadedPDFs, selectPDFFromLibrary, deletePDF
+    isOpen, setIsOpen, sessions, currentSessionId, createNewChat, selectSession, deleteSession, openSearch, uploadedPDFs, selectPDFFromLibrary, deletePDF, onSummarize
 }) => {
     const [libraryOpen, setLibraryOpen] = useState(false);
 
@@ -91,12 +92,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     >
                                         <FileText className="w-4 h-4 text-rose-400 flex-shrink-0" />
                                         <span className="flex-1 text-xs truncate text-gray-400">{pdf.name}</span>
-                                        <button
-                                            onClick={(e) => deletePDF(pdf.id, e)}
-                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
-                                        >
-                                            <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
-                                        </button>
+                                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+                                            <button
+                                                onClick={(e) => onSummarize(pdf, e)}
+                                                className="p-1 hover:bg-gray-700 rounded mr-1"
+                                                title="Summarize Document"
+                                            >
+                                                <Sparkles className="w-3 h-3 text-blue-400 hover:text-blue-300" />
+                                            </button>
+                                            <button
+                                                onClick={(e) => deletePDF(pdf.id, e)}
+                                                className="p-1 hover:bg-gray-700 rounded"
+                                            >
+                                                <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -118,8 +128,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         key={session.id}
                         onClick={() => selectSession(session)}
                         className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${currentSessionId === session.id
-                                ? 'bg-gray-800'
-                                : 'hover:bg-gray-800/50'
+                            ? 'bg-gray-800'
+                            : 'hover:bg-gray-800/50'
                             }`}
                     >
                         <span className="flex-1 text-sm truncate text-gray-300">{session.title}</span>

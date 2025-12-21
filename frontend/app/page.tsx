@@ -193,6 +193,14 @@ export default function Home() {
     showToast('success', `${pdf.name} selected. Ask a question about it!`);
   };
 
+  const handleSummarize = (pdf: UploadedPDF, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const prompt = `Please provide a detailed summary of the document '${pdf.name}'. \n\nInclude:\n1. Key Concepts\n2. Detailed Summary\n3. Key Takeaways`;
+    setInput(prompt);
+    // Don't auto-submit, let user confirm or edit
+    if (fileInputRef.current) fileInputRef.current.focus();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && !pendingAttachment) || isLoading) return;
@@ -270,6 +278,7 @@ export default function Home() {
         uploadedPDFs={uploadedPDFs}
         selectPDFFromLibrary={selectPDFFromLibrary}
         deletePDF={deletePDF}
+        onSummarize={handleSummarize}
       />
 
       <div className="flex-1 flex flex-col">
@@ -283,7 +292,7 @@ export default function Home() {
         <ChatArea
           messages={messages}
           isLoading={isLoading}
-          messagesEndRef={messagesEndRef}
+          messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
         />
 
         <ChatInput
@@ -295,7 +304,7 @@ export default function Home() {
           handleFileUpload={handleFileUpload}
           pendingAttachment={pendingAttachment}
           removePendingAttachment={removePendingAttachment}
-          fileInputRef={fileInputRef}
+          fileInputRef={fileInputRef as React.RefObject<HTMLInputElement>}
         />
       </div>
     </div>
