@@ -1,4 +1,4 @@
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from typing import List
@@ -8,9 +8,9 @@ import os
 
 class RAGPipeline:
     def __init__(self):
-        self.embeddings = GoogleGenerativeAIEmbeddings(
+        self.embeddings = OpenAIEmbeddings(
             model=config.EMBEDDING_MODEL,
-            google_api_key=config.GOOGLE_API_KEY
+            openai_api_key=config.OPENAI_API_KEY
         )
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,

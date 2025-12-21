@@ -1,4 +1,4 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.runnables import RunnablePassthrough
@@ -19,10 +19,10 @@ def format_docs(docs):
 
 class TutorAgent:
     def __init__(self, memory_manager: BaseMemoryManager = None):
-        self.llm = ChatGoogleGenerativeAI(
+        self.llm = ChatOpenAI(
             model=config.MODEL_NAME, 
             temperature=0.3, 
-            google_api_key=config.GOOGLE_API_KEY
+            openai_api_key=config.OPENAI_API_KEY
         )
         self.rag = RAGPipeline()
         self.retriever = self.rag.get_retriever(k=12)  # Get more documents for comprehensive answers

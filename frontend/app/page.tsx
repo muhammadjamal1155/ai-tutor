@@ -2,39 +2,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, User, Bot, Loader2, Plus, MessageSquare, PanelLeftClose, PanelLeft, Trash2, CheckCircle, XCircle, X, FileText, Search, Library, SquarePen, ChevronDown, ChevronRight, Mic, ArrowUp, Sparkles, BookOpen } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-
-interface Toast {
-  id: string;
-  type: 'success' | 'error';
-  message: string;
-}
-
-interface Attachment {
-  name: string;
-  type: string;
-}
-
-interface UploadedPDF {
-  id: string;
-  name: string;
-  uploadedAt: Date;
-}
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  attachment?: Attachment;
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  messages: Message[];
-  createdAt: Date;
-}
+import { Toast, Attachment, UploadedPDF, Message, ChatSession } from './types';
+import { Sidebar } from './components/Sidebar';
+import { Header } from './components/Header';
+import { ChatArea } from './components/ChatArea';
+import { ChatInput } from './components/ChatInput';
+import { SearchModal } from './components/SearchModal';
+import { ToastContainer } from './components/ToastContainer';
 
 export default function Home() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -49,14 +23,12 @@ export default function Home() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [pendingAttachment, setPendingAttachment] = useState<Attachment | null>(null);
   const [uploadedPDFs, setUploadedPDFs] = useState<UploadedPDF[]>([]);
-  const [libraryOpen, setLibraryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [useAI, setUseAI] = useState(true);  // Toggle for AI mode vs Document-only mode
+  const [useAI, setUseAI] = useState(true);
   const [responseMode, setResponseMode] = useState<'ai' | 'document_only'>('ai');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     const id = Date.now().toString();
@@ -70,15 +42,13 @@ export default function Home() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Load sessions from localStorage on mount
   useEffect(() => {
     const savedSessions = localStorage.getItem('chatSessions');
     if (savedSessions) {
       const parsed = JSON.parse(savedSessions);
       const loadedSessions = parsed.map((s: ChatSession) => ({ ...s, createdAt: new Date(s.createdAt) }));
       setSessions(loadedSessions);
-      
-      // Restore last active session
+
       const lastSessionId = localStorage.getItem('currentSessionId');
       if (lastSessionId) {
         const lastSession = loadedSessions.find((s: ChatSession) => s.id === lastSessionId);
@@ -88,7 +58,7 @@ export default function Home() {
         }
       }
     }
-    
+
     const savedPDFs = localStorage.getItem('uploadedPDFs');
     if (savedPDFs) {
       const parsed = JSON.parse(savedPDFs);
@@ -96,25 +66,22 @@ export default function Home() {
     }
   }, []);
 
-  // Save current session ID to localStorage
   useEffect(() => {
     if (currentSessionId) {
       localStorage.setItem('currentSessionId', currentSessionId);
     }
   }, [currentSessionId]);
 
-  // Save sessions to localStorage whenever they change
   useEffect(() => {
     if (sessions.length > 0) {
       localStorage.setItem('chatSessions', JSON.stringify(sessions));
     }
   }, [sessions]);
 
-  // Update current session's messages
   useEffect(() => {
     if (currentSessionId && messages.length > 1) {
-      setSessions(prev => prev.map(session => 
-        session.id === currentSessionId 
+      setSessions(prev => prev.map(session =>
+        session.id === currentSessionId
           ? { ...session, messages, title: getSessionTitle(messages) }
           : session
       ));
@@ -161,7 +128,6 @@ export default function Home() {
       setCurrentSessionId(null);
       setMessages([{ role: 'assistant', content: 'Hello! I am your AI Tutor. How can I help you today?' }]);
     }
-    // Update localStorage
     const remaining = sessions.filter(s => s.id !== sessionId);
     if (remaining.length === 0) {
       localStorage.removeItem('chatSessions');
@@ -183,7 +149,6 @@ export default function Home() {
         },
       });
 
-      // Add to uploaded PDFs list
       const newPDF: UploadedPDF = {
         id: Date.now().toString(),
         name: file.name,
@@ -195,7 +160,6 @@ export default function Home() {
         return updated;
       });
 
-      // Set pending attachment to show in input bar
       setPendingAttachment({ name: file.name, type: 'pdf' });
       showToast('success', `${file.name} uploaded! Ask a question about it.`);
     } catch (error) {
@@ -237,18 +201,17 @@ export default function Home() {
     const attachment = pendingAttachment;
     setInput('');
     setPendingAttachment(null);
-    
-    const newUserMessage: Message = { 
-      role: 'user', 
+
+    const newUserMessage: Message = {
+      role: 'user',
       content: userMessage || (attachment ? `Analyze this document: ${attachment.name}` : ''),
       attachment: attachment || undefined
     };
-    
+
     setMessages(prev => [...prev, newUserMessage]);
     setIsLoading(true);
 
     try {
-      // Create a new session if none exists
       if (!currentSessionId) {
         const newSession: ChatSession = {
           id: Date.now().toString(),
@@ -260,18 +223,15 @@ export default function Home() {
         setCurrentSessionId(newSession.id);
       }
 
-      // Call through the Next.js rewrite proxy
       const response = await axios.post('/api/chat', {
         message: userMessage || `Please analyze and summarize the document: ${attachment?.name}`,
         session_id: currentSessionId || "web-user-1",
-        use_ai: useAI  // Pass the AI mode toggle
+        use_ai: useAI
       });
 
-      // Track the response mode (AI or document-only fallback)
       if (response.data.mode) {
         setResponseMode(response.data.mode);
         if (response.data.mode === 'document_only' && useAI) {
-          // AI was requested but fell back to document mode (quota exceeded)
           showToast('error', 'AI quota exceeded. Showing document results instead.');
         }
       }
@@ -287,456 +247,56 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-gray-900 text-gray-100">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className={`flex items-center gap-3 p-4 rounded-lg shadow-lg animate-in slide-in-from-right duration-300 ${
-              toast.type === 'success'
-                ? 'bg-green-600/90 border border-green-500'
-                : 'bg-red-600/90 border border-red-500'
-            }`}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-white flex-shrink-0" />
-            ) : (
-              <XCircle className="w-5 h-5 text-white flex-shrink-0" />
-            )}
-            <span className="text-white text-sm max-w-xs">{toast.message}</span>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
-          </div>
-        ))}
-      </div>
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Search Modal */}
-      {searchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-gray-900 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
-            {/* Search Input */}
-            <div className="flex items-center gap-3 p-4 border-b border-gray-800">
-              <div className="flex-1 relative">
-                {searchQuery && (
-                  <span className="inline-block bg-blue-600 text-white text-sm px-2 py-0.5 rounded mr-2">
-                    {searchQuery}
-                  </span>
-                )}
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search conversations..."
-                  className="w-full bg-transparent text-gray-200 text-base focus:outline-none placeholder:text-gray-500"
-                  autoFocus
-                />
-              </div>
-              <button
-                onClick={() => {
-                  setSearchOpen(false);
-                  setSearchQuery('');
-                }}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            
-            {/* Search Results */}
-            <div className="max-h-96 overflow-y-auto">
-              {(() => {
-                const filteredSessions = searchQuery.trim()
-                  ? sessions.filter(s => 
-                      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      s.messages.some(m => m.content.toLowerCase().includes(searchQuery.toLowerCase()))
-                    )
-                  : sessions;
-                
-                const getMatchPreview = (session: ChatSession): string => {
-                  if (!searchQuery.trim()) return session.title;
-                  const query = searchQuery.toLowerCase();
-                  for (const msg of session.messages) {
-                    const idx = msg.content.toLowerCase().indexOf(query);
-                    if (idx !== -1) {
-                      const start = Math.max(0, idx - 30);
-                      const end = Math.min(msg.content.length, idx + query.length + 50);
-                      return (start > 0 ? '...' : '') + msg.content.slice(start, end) + (end < msg.content.length ? '...' : '');
-                    }
-                  }
-                  return session.title;
-                };
-                
-                const highlightMatch = (text: string): React.ReactElement => {
-                  if (!searchQuery.trim()) return <>{text}</>;
-                  const query = searchQuery.toLowerCase();
-                  const idx = text.toLowerCase().indexOf(query);
-                  if (idx === -1) return <>{text}</>;
-                  return (
-                    <>
-                      {text.slice(0, idx)}
-                      <span className="font-semibold text-white">{text.slice(idx, idx + searchQuery.length)}</span>
-                      {text.slice(idx + searchQuery.length)}
-                    </>
-                  );
-                };
-                
-                return filteredSessions.length > 0 ? (
-                  filteredSessions.map(session => (
-                    <div
-                      key={session.id}
-                      onClick={() => {
-                        selectSession(session);
-                        setSearchOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors border-b border-gray-800/50 last:border-b-0"
-                    >
-                      <div className="mt-1 w-4 h-4 rounded-full border-2 border-gray-600 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-200 truncate">
-                          {highlightMatch(session.title)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                          {highlightMatch(getMatchPreview(session))}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center text-gray-500">
-                    {searchQuery.trim() ? 'No chats found' : 'No conversations yet'}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+      <SearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        sessions={sessions}
+        onSelectSession={selectSession}
+      />
 
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-gray-950 flex flex-col overflow-hidden`}>
-        {/* Logo and Toggle */}
-        <div className="p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <PanelLeftClose className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
+      <Sidebar
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        createNewChat={createNewChat}
+        selectSession={selectSession}
+        deleteSession={deleteSession}
+        openSearch={() => setSearchOpen(true)}
+        uploadedPDFs={uploadedPDFs}
+        selectPDFFromLibrary={selectPDFFromLibrary}
+        deletePDF={deletePDF}
+      />
 
-        {/* Navigation Items */}
-        <div className="px-2 space-y-1">
-          <button
-            onClick={createNewChat}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 transition-colors text-gray-200"
-          >
-            <SquarePen className="w-5 h-5" />
-            <span className="text-sm">New chat</span>
-          </button>
-          
-          {/* Search Button */}
-          <button
-            onClick={() => {
-              setSearchOpen(true);
-              setSearchQuery('');
-              setTimeout(() => searchInputRef.current?.focus(), 100);
-            }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 transition-colors text-gray-200"
-          >
-            <Search className="w-5 h-5" />
-            <span className="text-sm">Search chats</span>
-          </button>
-          
-          {/* Library Section */}
-          <div>
-            <button
-              onClick={() => setLibraryOpen(!libraryOpen)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-800 transition-colors text-gray-200"
-            >
-              <Library className="w-5 h-5" />
-              <span className="text-sm flex-1 text-left">Library</span>
-              {uploadedPDFs.length > 0 && (
-                <span className="text-xs bg-gray-700 px-1.5 py-0.5 rounded text-gray-400">
-                  {uploadedPDFs.length}
-                </span>
-              )}
-              {libraryOpen ? (
-                <ChevronDown className="w-4 h-4 text-gray-400" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              )}
-            </button>
-            
-            {/* PDF List */}
-            {libraryOpen && (
-              <div className="mt-1 ml-4 space-y-1">
-                {uploadedPDFs.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-gray-500">No documents uploaded</p>
-                ) : (
-                  uploadedPDFs.map(pdf => (
-                    <div
-                      key={pdf.id}
-                      onClick={() => selectPDFFromLibrary(pdf)}
-                      className="group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-gray-800/50 transition-colors"
-                    >
-                      <FileText className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                      <span className="flex-1 text-xs truncate text-gray-400">{pdf.name}</span>
-                      <button
-                        onClick={(e) => deletePDF(pdf.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
-                      >
-                        <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="my-3 border-t border-gray-800" />
-        
-        {/* Chat History */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-1">
-          {sessions.length > 0 && (
-            <p className="px-3 py-2 text-xs text-gray-500 font-medium">Recent</p>
-          )}
-          {sessions.map(session => (
-            <div
-              key={session.id}
-              onClick={() => selectSession(session)}
-              className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                currentSessionId === session.id
-                  ? 'bg-gray-800'
-                  : 'hover:bg-gray-800/50'
-              }`}
-            >
-              <span className="flex-1 text-sm truncate text-gray-300">{session.title}</span>
-              <button
-                onClick={(e) => deleteSession(session.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
-              >
-                <Trash2 className="w-4 h-4 text-gray-400 hover:text-red-400" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </aside>
-
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="p-4 border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto flex items-center gap-2">
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors mr-2"
-              >
-                <PanelLeft className="w-5 h-5 text-gray-400" />
-              </button>
-            )}
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent flex-1">
-              AI Personal Tutor
-            </h1>
-            
-            {/* AI Mode Toggle */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setUseAI(!useAI)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  useAI 
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/25' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-                title={useAI ? 'AI Mode: Using AI for answers' : 'Document Mode: Searching documents only'}
-              >
-                {useAI ? (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>AI Mode</span>
-                  </>
-                ) : (
-                  <>
-                    <BookOpen className="w-4 h-4" />
-                    <span>Docs Only</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
+        <Header
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          useAI={useAI}
+          setUseAI={setUseAI}
+        />
 
-      {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="max-w-4xl mx-auto space-y-4">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''
-                }`}
-            >
-              <div
-                className={`p-2 rounded-full flex-shrink-0 ${msg.role === 'user' ? 'bg-purple-600' : 'bg-blue-600'
-                  }`}
-              >
-                {msg.role === 'user' ? (
-                  <User className="w-5 h-5 text-white" />
-                ) : (
-                  <Bot className="w-5 h-5 text-white" />
-                )}
-              </div>
+        <ChatArea
+          messages={messages}
+          isLoading={isLoading}
+          messagesEndRef={messagesEndRef}
+        />
 
-
-              <div
-                className={`p-4 rounded-2xl max-w-[80%] ${msg.role === 'user'
-                  ? 'bg-purple-600/20 border border-purple-500/30 rounded-tr-none'
-                  : 'bg-gray-800 border border-gray-700 rounded-tl-none'
-                  }`}
-              >
-                {/* Show attachment if exists */}
-                {msg.attachment && (
-                  <div className="flex items-center gap-2 mb-3 p-2 bg-gray-700/50 border border-gray-600 rounded-lg w-fit">
-                    <div className="p-1.5 bg-rose-500 rounded">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="text-sm">
-                      <p className="text-gray-100 font-medium">{msg.attachment.name}</p>
-                      <p className="text-gray-400 text-xs uppercase">{msg.attachment.type}</p>
-                    </div>
-                  </div>
-                )}
-                {msg.role === 'user' ? (
-                  <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                ) : (
-                  <div className="prose prose-invert prose-sm max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
-                    </ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-blue-600 flex-shrink-0">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-              <div className="p-4 rounded-2xl bg-gray-800 border border-gray-700 rounded-tl-none flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                <span className="text-gray-400 text-sm">Thinking...</span>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </main>
-
-      {/* Input Area */}
-      <footer className="p-4 border-t border-gray-800 bg-gray-900 sticky bottom-0">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit}>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              className="hidden"
-              accept=".pdf"
-            />
-
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden focus-within:border-gray-600 transition-all">
-              {/* Pending Attachment Preview - Inside Input */}
-              {pendingAttachment && (
-                <div className="px-4 pt-4">
-                  <div className="inline-flex items-center gap-3 px-3 py-2 bg-gray-900 border border-gray-700 rounded-xl">
-                    <div className="p-2 bg-rose-500 rounded-lg">
-                      <FileText className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="text-sm">
-                      <p className="text-gray-100 font-medium">{pendingAttachment.name}</p>
-                      <p className="text-gray-500 text-xs uppercase">{pendingAttachment.type}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={removePendingAttachment}
-                      className="p-1 hover:bg-gray-700 rounded-full transition-colors"
-                    >
-                      <X className="w-4 h-4 text-gray-400 hover:text-white" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Input Row */}
-              <div className="flex items-center gap-2 p-2">
-                {/* Left: Upload Button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading || isLoading}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-                  title="Upload PDF"
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                  ) : (
-                    <Plus className="w-5 h-5" />
-                  )}
-                </button>
-
-                {/* Text Input */}
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask anything"
-                  className="flex-1 py-2 px-2 bg-transparent outline-none placeholder:text-gray-500 text-white"
-                  disabled={isLoading}
-                />
-
-                {/* Right: Mic Button */}
-                <button
-                  type="button"
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-                  title="Voice input"
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-
-                {/* Right: Send Button */}
-                <button
-                  type="submit"
-                  disabled={(!input.trim() && !pendingAttachment) || isLoading}
-                  className="p-2 bg-white text-gray-900 rounded-full hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-white transition-colors flex-shrink-0"
-                >
-                  <ArrowUp className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </form>
-          <p className="text-center text-xs text-gray-500 mt-3">
-            AI can make mistakes. Please verify important information.
-          </p>
-        </div>
-      </footer>
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          handleSubmit={handleSubmit}
+          isLoading={isLoading}
+          isUploading={isUploading}
+          handleFileUpload={handleFileUpload}
+          pendingAttachment={pendingAttachment}
+          removePendingAttachment={removePendingAttachment}
+          fileInputRef={fileInputRef}
+        />
       </div>
     </div>
   );

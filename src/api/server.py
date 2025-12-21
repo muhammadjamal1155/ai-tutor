@@ -29,7 +29,7 @@ class ChatResponse(BaseModel):
 async def startup_event():
     global tutor_agent, init_error
     from src.config.settings import config
-    print(f"Server Startup. Using Key: {config.GOOGLE_API_KEY[:10]}...", flush=True)
+    print(f"Server Startup. Using Key: {config.OPENAI_API_KEY[:10]}...", flush=True)
     print("Attempting to initialize Tutor Agent...", flush=True)
     try:
         tutor_agent = TutorAgent()
