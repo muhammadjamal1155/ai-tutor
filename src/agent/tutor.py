@@ -166,7 +166,8 @@ class TutorAgent:
             results = []
             results.append("📚 **Found relevant information from your documents:**\n")
             
-            for i, doc in enumerate(unique_docs[:k], 1):
+            # Show ONLY the top result as requested
+            for i, doc in enumerate(unique_docs[:1], 1):
                 source = doc.metadata.get('source', 'Unknown document')
                 # Get just the filename
                 if '/' in source or '\\' in source:
@@ -179,8 +180,6 @@ class TutorAgent:
                 
                 results.append(f"**📄 Source {i}: {source}**")
                 results.append(f"> {content}\n")
-            
-            results.append("\n---\n*⚠️ This response is from document search only (AI is currently unavailable due to quota limits). The AI will provide better explanations when available.*")
             
             return "\n".join(results)
         except Exception as e:

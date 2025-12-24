@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { ArrowUp, Mic, Plus, Loader2, FileText, X } from 'lucide-react';
+import { ArrowUp, Plus, Loader2, FileText, X } from 'lucide-react';
 import { Attachment } from '../types';
 
 interface ChatInputProps {
@@ -79,14 +79,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 disabled={isLoading}
                             />
 
-                            {/* Right: Mic Button */}
-                            <button
-                                type="button"
-                                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-                                title="Voice input"
-                            >
-                                <Mic className="w-5 h-5" />
-                            </button>
+
 
                             {/* Right: Send Button */}
                             <button
