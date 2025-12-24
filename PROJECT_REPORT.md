@@ -9,11 +9,11 @@ The AI Personal Tutor is a sophisticated RAG (Retrieval-Augmented Generation) po
 ## 🏗️ Architecture Overview
 
 ### **Technology Stack**
-- **Backend**: Python 3.10+, FastAPI, LangChain
+- **Backend**: Python 3.10+, FastAPI (Standard), LangChain
 - **Frontend**: Next.js 16, React 19, TypeScript, TailwindCSS
 - **AI Models**: OpenAI GPT-4o-mini, text-embedding-3-small
 - **Vector Database**: FAISS (Facebook AI Similarity Search)
-- **PDF Processing**: PyMuPDF (MuPDF)
+- **PDF Processing**: pypdf (Pure Python implementation)
 - **Memory Management**: In-memory conversation history
 
 ### **System Architecture Pattern**
@@ -124,7 +124,7 @@ class ChatResponse(BaseModel):
 ### 6. **Document Processing (`src/loaders/pdf_loader.py`)**
 
 #### **PDF Processing Pipeline**
-- **Loader**: PyMuPDFLoader for robust PDF text extraction
+- **Loader**: PyPDFLoader for robust, pure-Python PDF text extraction
 - **Batch Processing**: Handles multiple PDFs in directory
 - **Single File Support**: Individual PDF ingestion capability
 - **Error Recovery**: Continues processing even if individual files fail
@@ -195,7 +195,8 @@ EMBEDDINGS_DIR = DATA_DIR / "embeddings"
 - **LangChain Ecosystem**: Core framework, OpenAI integration
 - **OpenAI**: langchain-openai for GPT access
 - **FAISS**: faiss-cpu==1.13.1 for vector operations
-- **PyMuPDF**: PDF processing capabilities
+- **pypdf**: Robust pure-Python PDF processing
+- **python-multipart**: Multipart form data support for file uploads
 
 ### **Web Framework**
 - **FastAPI**: Modern async web framework
@@ -339,6 +340,31 @@ User Message → Session ID → Memory Store → Conversation History → Contex
 
 ---
 
+
+## 🔧 Troubleshooting & Resolution Log (2025-12-24)
+
+### **Critical Issues Resolved**
+
+#### **1. Server Startup Failures (FastAPI/Uvicorn)**
+- **Issue**: Missing standard dependencies (`uvicorn`, `fastapi`, `python-multipart`) caused server initialization failures and `RuntimeError: Form data requires "python-multipart"`.
+- **Resolution**: 
+  - Installed `fastapi[standard]` to ensure all optional dependencies are present.
+  - Verified importability with a custom debug script before restarting services.
+  - Updated `requirements.txt` to lock these versions.
+
+#### **2. PDF Processing Compatibility (PyMuPDF vs Windows)**
+- **Issue**: `PyMuPDF` (MuPDF binding) failed to load DLLs on the Windows host environment, causing 500 errors during file upload.
+- **Resolution**:
+  - Migrated from `PyMuPDFLoader` to `PyPDFLoader` (from `pypdf` packet).
+  - `pypdf` is a pure-Python library, eliminating binary compatibility issues on Windows.
+  - Codebase updated in `src/loaders/pdf_loader.py` to utilize the new loader seamlessly.
+
+#### **3. Frontend Proxy Configuration**
+- **Issue**: `Next.js` was configured to proxy requests to port `8001`, but the backend was running on `8000`.
+- **Resolution**: Updated `next.config.ts` to point to port `8000` (Standard Uvicorn port).
+
+---
+
 ## 📊 Technical Specifications Summary
 
 | Component | Technology | Version | Purpose |
@@ -348,7 +374,7 @@ User Message → Session ID → Memory Store → Conversation History → Contex
 | Vector DB | FAISS | 1.13.1 | Similarity search |
 | Backend | FastAPI | Latest | REST API server |
 | Frontend | Next.js | 16.0.10 | User interface |
-| PDF Processing | PyMuPDF | Latest | Document extraction |
+| PDF Processing | pypdf | 6.5.0 | Document extraction |
 | Memory | In-Memory | Custom | Session management |
 
 ---
