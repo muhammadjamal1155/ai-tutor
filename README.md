@@ -27,10 +27,12 @@
 |---------|-------------|
 | 📄 **PDF Ingestion** | Automatically process PDF study materials |
 | ⚡ **Incremental Indexing** | Fast uploads without full re-indexing |
-| 🧠 **Intelligent RAG** | Google Gemini + FAISS vector search |
+| 🧠 **Intelligent RAG** | OpenAI (GPT-4o) + FAISS vector search |
 | 💬 **Context-Aware** | Answers from *your* documents only |
 | 🔄 **Memory** | Retains conversation context |
 | 🌐 **REST API** | FastAPI with `/chat` & `/upload` |
+| 📝 **Summarization** | Structured summaries of documents |
+| 🗂️ **Dual Mode** | Smart fallback to Document-only search |
 
 </td>
 <td width="50%" valign="top">
@@ -45,6 +47,7 @@
 | 📁 **PDF Library** | Manage uploaded documents |
 | 💾 **Persistence** | Sessions survive page reload |
 | 🔔 **Notifications** | Toast feedback for actions |
+| ✨ **Auto-Summary** | One-click document summarization |
 
 </td>
 </tr>
