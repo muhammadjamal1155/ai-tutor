@@ -1,358 +1,141 @@
-# 🎓 AI Personal Tutor - Complete Project Report
+# AI Tutor Project Report
 
-## 📋 Project Overview
+## 1. Executive Summary
 
-The AI Personal Tutor is a sophisticated RAG (Retrieval-Augmented Generation) powered learning assistant that provides personalized tutoring based on uploaded PDF documents. The system combines OpenAI's GPT models with vector search capabilities to deliver context-aware, intelligent responses.
+This report provides a comprehensive technical overview of the AI Tutor application, a document-querying system designed to allow users to interact intelligently with uploaded PDF documents. The system leverages a cohesive architecture comprising a modern Next.js frontend and a robust FastAPI-based backend. Central to its functionality is a Retrieval-Augmented Generation (RAG) pipeline that enables context-aware responses by retrieving relevant information from a vector database before processing it with a Large Language Model (LLM).
 
----
-
-## 🏗️ Architecture Overview
-
-### **Technology Stack**
-- **Backend**: Python 3.10+, FastAPI, LangChain
-- **Frontend**: Next.js 16, React 19, TypeScript, TailwindCSS
-- **AI Models**: OpenAI GPT-4o-mini, text-embedding-3-small
-- **Vector Database**: FAISS (Facebook AI Similarity Search)
-- **PDF Processing**: PyMuPDF (MuPDF)
-- **Memory Management**: In-memory conversation history
-
-### **System Architecture Pattern**
-The project follows SOLID principles with:
-- **Single Responsibility**: Each component has a specific purpose
-- **Open/Closed**: Tool factory allows extension without modification
-- **Dependency Inversion**: Abstract base classes for memory management
+The application is built with scalability and modularity in mind, utilizing industry-standard tools such as LangChain for orchestration, FAISS for vector storage, and OpenAI's suite of models for embeddings and generation. This document details the architectural decisions, component implementations, and the specific data flows that drive the system's core functionalities.
 
 ---
 
-## 🔧 Core Components Analysis
+## 2. System Architecture Overview
 
-### 1. **RAG Pipeline (`src/rag/vector_store.py`)**
+The AI Tutor follows a clean client-server architecture, decoupling the user interface from the logic-heavy backend.
 
-#### **Vector Search Model & Implementation**
-- **Embedding Model**: `text-embedding-3-small` (OpenAI's latest efficient embedding model)
-- **Vector Database**: FAISS for efficient similarity search
-- **Search Algorithm**: Cosine similarity search with configurable K value (default: 8, expanded to 12 for comprehensive answers)
+### 2.1 High-Level Diagram
 
-#### **Text Processing Strategy**
-```python
-RecursiveCharacterTextSplitter(
-    chunk_size=1000,      # Optimal chunk size for context retention
-    chunk_overlap=200,    # Overlap to prevent information loss
-    add_start_index=True  # Track original document position
-)
+```mermaid
+graph LR
+    User[User] -->|Interacts| Frontend[Next.js Frontend]
+    Frontend -->|HTTP Requests| Backend[FastAPI Backend]
+    Backend -->|Ingest/Query| RAG[RAG Pipeline]
+    RAG -->|Store/Retrieve| VectorDB[(FAISS Vector Store)]
+    RAG -->|Generate| OpenAI[OpenAI API]
+    Backend -->|Upload| FS[File System]
 ```
 
-#### **Key Features**
-- **Incremental Indexing**: Add new documents without rebuilding entire index
-- **Persistent Storage**: FAISS index saved locally for quick retrieval
-- **Content Deduplication**: Hash-based duplicate detection in search results
-- **Metadata Preservation**: Source tracking for citation purposes
+### 2.2 Core Components
 
-### 2. **AI Agent (`src/agent/tutor.py`)**
-
-#### **Language Model Configuration**
-- **Model**: `gpt-4o-mini` (OpenAI's cost-effective reasoning model)
-- **Temperature**: 0.3 (balanced creativity vs consistency)
-- **Context Window**: Enhanced with 12 retrieved documents per query
-
-#### **Intelligent Features**
-- **Memory Management**: Conversation history persistence across sessions
-- **Comprehensive Responses**: System prompt optimized for listing all types/categories
-- **Fallback Mechanism**: Document-only mode when AI quota is exhausted
-- **Source Attribution**: Citations with document names and content
-
-#### **Prompt Engineering**
-The system uses carefully crafted prompts that:
-- Emphasize comprehensive listing of all types/categories
-- Provide numbered/bulleted responses for clarity
-- Include context preservation instructions
-- Handle edge cases gracefully
-
-### 3. **Tool System (`src/agent/tools/tool_factory.py`)**
-
-#### **Available Tools**
-| Tool Name | Function | Description |
-|-----------|----------|-------------|
-| `search_course_materials` | Document Retrieval | Searches through uploaded PDFs using vector similarity |
-
-#### **Tool Factory Pattern**
-- **Extensibility**: Easy to add new tools without modifying existing code
-- **Separation of Concerns**: Each tool has a specific purpose
-- **Standardized Interface**: All tools implement LangChain Tool interface
-
-### 4. **Memory Management (`src/memory/memory_manager.py`)**
-
-#### **Memory Architecture**
-- **Base Class**: `BaseMemoryManager` (Abstract interface)
-- **Implementation**: `InMemoryHistoryManager` (Session-based storage)
-- **Session Management**: Unique session IDs for conversation isolation
-- **Message History**: Complete conversation context retention
-
-#### **Memory Features**
-- **Session Persistence**: Conversations survive across multiple queries
-- **Context Awareness**: Previous messages influence current responses
-- **Memory Isolation**: Each user session is completely separate
-
-### 5. **API Server (`src/api/server.py`)**
-
-#### **Endpoints**
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/health` | GET | System status and readiness check |
-| `/chat` | POST | Main chat interface with AI/fallback modes |
-| `/upload` | POST | PDF document ingestion |
-
-#### **Request/Response Models**
-```python
-# Chat Request
-class ChatRequest(BaseModel):
-    message: str
-    session_id: str = "default_session"
-    use_ai: bool = True
-
-# Chat Response
-class ChatResponse(BaseModel):
-    answer: str
-    mode: str  # "ai" or "document_only"
-```
-
-#### **Error Handling & Fallbacks**
-- **Quota Management**: Automatic fallback to document search when AI quota exceeded
-- **Graceful Degradation**: System continues functioning even when AI is unavailable
-- **Detailed Error Messages**: Comprehensive error reporting for debugging
-
-### 6. **Document Processing (`src/loaders/pdf_loader.py`)**
-
-#### **PDF Processing Pipeline**
-- **Loader**: PyMuPDFLoader for robust PDF text extraction
-- **Batch Processing**: Handles multiple PDFs in directory
-- **Single File Support**: Individual PDF ingestion capability
-- **Error Recovery**: Continues processing even if individual files fail
-
-#### **Supported Features**
-- **Multi-format Support**: Primarily PDF with extensible architecture
-- **Metadata Extraction**: Document source tracking
-- **Text Extraction**: High-quality text extraction from complex PDFs
+*   **Frontend**: Handles user interactions, chat history display, and file uploads. Built with Next.js 16 and React 19, styled with TailwindCSS.
+*   **Backend**: Manages API endpoints, handles business logic, and orchestrates the AI operations. Built with FastAPI.
+*   **RAG Engine**: Performs document ingestion, text splitting, embedding generation, and semantic search. Powered by LangChain.
+*   **Storage**: Uses the local file system for raw PDFs and FAISS (Facebook AI Similarity Search) for storing vector embeddings.
 
 ---
 
-## 🚀 Frontend Architecture (`frontend/`)
+## 3. Backend Implementation
 
-### **Technology Stack**
-- **Framework**: Next.js 16 with React 19
-- **Styling**: TailwindCSS 4 with Typography plugin
-- **HTTP Client**: Axios for API communication
-- **Markdown**: react-markdown with GitHub Flavored Markdown
+The backend is the core intelligence engine of the AI Tutor. It is structured to handle high-concurrency requests and efficient data processing.
 
-### **Key Features**
-- **Modern UI**: ChatGPT-style dark theme interface
-- **Real-time Chat**: Live communication with backend
-- **File Management**: PDF upload and library management
-- **Session Management**: Persistent conversation sessions
-- **Responsive Design**: Mobile and desktop optimized
+### 3.1 Technology Stack
 
----
+*   **Framework**: **FastAPI** provides a high-performance web server with automatic interactive documentation (Swagger UI).
+*   **Server**: **Uvicorn**, an ASGI server implementation, running the application.
+*   **Language**: **Python 3.x**.
+*   **Orchestration**: **LangChain** is used extensively to manage chains, prompts, and document loading.
+*   **PDF Processing**: **PyMuPDF (fitz)** via `langchain_community.document_loaders.PyMuPDFLoader` allows for fast and accurate text extraction from PDFs.
 
-## 📊 Search & Retrieval Methodology
+### 3.2 Key Functionality & Tools
 
-### **Vector Search Process**
-1. **Query Embedding**: User question converted to 1536-dimensional vector
-2. **Similarity Search**: FAISS performs cosine similarity search
-3. **Top-K Retrieval**: Retrieves top 8-12 most relevant document chunks
-4. **Content Deduplication**: Removes duplicate content using SHA-256 hashing
-5. **Context Formatting**: Formats retrieved content with source attribution
+#### 3.2.1 API Layer (`src/api/server.py`)
+The API exposes three primary endpoints:
+1.  **`GET /health`**: A diagnostic endpoint to check if the `TutorAgent` is initialized and ready.
+2.  **`POST /chat`**: The main interaction point. It accepts a user message and a session ID. It supports two modes:
+    *   **AI Mode**: Uses the full RAG pipeline to generate answers.
+    *   **Document-Only Mode**: A fallback or user-selected mode that returns raw search results without LLM synthesis.
+    *   *Error Handling*: Includes specific logic to catch OpenAI quota errors ("RESOURCE_EXHAUSTED") and automatically degrade to document-only search.
+3.  **`POST /upload`**: Handles PDF file uploads. It validates the file extension, saves it to `data/raw_pdfs`, and immediately triggers an incremental ingestion process to make the document available for querying without restarting the server.
 
-### **Search Optimization Strategies**
-- **Chunk Overlap**: 200-character overlap prevents information fragmentation
-- **Dynamic K-value**: Adjustable based on query complexity
-- **Content Ranking**: Results sorted by relevance score
-- **Source Tracking**: Complete metadata preservation for citations
+#### 3.2.2 The Agent (`src/agent/tutor.py`)
+The `TutorAgent` class acts as the controller. It initializes the RAG pipeline and exposes methods for `ask()` (generating answers) and `search_documents()` (retrieving raw context). It maintains the connection to the retriever and handles the prompt engineering required to guide the LLM.
 
 ---
 
-## 🔌 Configuration Management (`src/config/settings.py`)
+## 4. Implementation Retrieval-Augmented Generation (RAG)
 
-### **Environment Configuration**
-- **API Keys**: Secure OpenAI API key management
-- **Model Selection**: Configurable AI models
-- **Data Paths**: Structured directory management
-- **Fallback Mechanisms**: Multiple key loading strategies
+The RAG pipeline is the most critical subsystem, bridging the gap between static documents and dynamic conversational AI.
 
-### **Key Settings**
-```python
-MODEL_NAME = "gpt-4o-mini"
-EMBEDDING_MODEL = "text-embedding-3-small"
-DATA_DIR = BASE_DIR / "data"
-RAW_PDFS_DIR = DATA_DIR / "raw_pdfs"
-EMBEDDINGS_DIR = DATA_DIR / "embeddings"
-```
+### 4.1 Embedding Strategy
 
----
+*   **Model**: **`text-embedding-3-small`**
+    *   *Source*: OpenAI.
+    *   *Usage*: This model is used to convert both the document chunks and the user's query into high-dimensional vector representations. It offers a balance of cost-efficiency and high performance for semantic similarity tasks.
+*   **Configuration**: The model selection is centralized in `src/config/settings.py` to allow for easy upgrades (e.g., to `text-embedding-3-large`) without code changes.
 
-## 📦 Dependencies & Requirements
+### 4.2 Vector Storage
 
-### **Core AI Dependencies**
-- **LangChain Ecosystem**: Core framework, OpenAI integration
-- **OpenAI**: langchain-openai for GPT access
-- **FAISS**: faiss-cpu==1.13.1 for vector operations
-- **PyMuPDF**: PDF processing capabilities
+*   **Tool**: **FAISS (Facebook AI Similarity Search)**
+    *   *Library*: `langchain_community.vectorstores.FAISS`.
+    *   *Storage Location*: Embeddings are serialized and saved locally to the `data/embeddings/faiss_index` directory.
+    *   *Why FAISS?*: It provides extremely fast similarity search for dense vectors and is well-suited for datasets that fit within local memory/disk, avoiding the complexity of a managed service for this scale.
 
-### **Web Framework**
-- **FastAPI**: Modern async web framework
-- **Uvicorn**: ASGI server for deployment
-- **Pydantic**: Data validation and serialization
+### 4.3 Ingestion Pipeline (`src/ingest.py` & `src/rag/vector_store.py`)
 
-### **Frontend Dependencies**
-- **Next.js 16**: React framework with SSR
-- **TypeScript 5**: Type-safe development
-- **TailwindCSS 4**: Utility-first styling
+The ingestion process enables the system to "learn" new documents.
 
----
+1.  **Loading**:
+    *   The `PDFLoader` (`src/loaders/pdf_loader.py`) iterates through the `data/raw_pdfs` directory.
+    *   It uses **PyMuPDF** to extract text, which is known for its speed and ability to handle complex PDF layouts better than basic loaders.
 
-## 🛠️ How the Tools Work
+2.  **Splitting**:
+    *   **Tool**: `RecursiveCharacterTextSplitter`.
+    *   **Config**: `chunk_size=1000` characters, `chunk_overlap=200` characters.
+    *   *Logic*: Large documents are broken down into smaller, manageable chunks. The overlap ensures that context at the edges of chunks is not lost, maintaining semantic continuity.
 
-### **1. Document Search Tool**
+3.  **Embedding & Indexing**:
+    *   The chunks are passed to the `OpenAIEmbeddings` model.
+    *   The resulting vectors are added to the FAISS index.
+    *   The index is then saved to disk (`save_local`).
+    *   *Incremental Updates*: The system supports adding individual files (`ingest_single_file`) without re-processing the entire library, significantly improving performance for uploads.
 
-#### **Process Flow**
-```
-User Query → Embedding → Vector Search → Document Retrieval → Content Formatting → Response
-```
+### 4.4 Retrieval and Generation
 
-#### **Implementation Details**
-- **Function**: `search_course_materials`
-- **Input**: Natural language query string
-- **Processing**: 
-  1. Query vectorization using text-embedding-004
-  2. FAISS similarity search across indexed documents
-  3. Content deduplication and ranking
-  4. Source attribution and formatting
-- **Output**: Formatted text with document excerpts and citations
-
-#### **Optimization Features**
-- **Semantic Search**: Understanding context beyond keyword matching
-- **Multi-document Retrieval**: Searches across all uploaded PDFs simultaneously
-- **Relevance Scoring**: Returns most contextually relevant information
-- **Content Preservation**: Maintains original document structure and meaning
-
-### **2. Memory Tool (Implicit)**
-
-#### **Session Management**
-- **Session IDs**: Unique identifiers for conversation isolation
-- **Message History**: Complete conversation context storage
-- **Context Window**: Maintains conversation flow for coherent responses
+When a user asks a question:
+1.  **Retrieve**: The user's query is embedded, and FAISS performs a similarity search (`k=8` chunks) to find the most relevant text segments.
+2.  **Augment**: These retrieved segments are formatted into a context block.
+3.  **Generate**: A prompt containing both the user's question and the retrieved context is sent to the LLM (**`gpt-4o-mini`**). The LLM synthesizes an answer based *only* on the provided context, reducing hallucinations.
 
 ---
 
-## 🚦 System Performance & Capabilities
+## 5. Frontend Implementation
 
-### **Search Performance**
-- **Index Loading**: Optimized FAISS index loading with caching
-- **Query Response Time**: Sub-second retrieval for most queries
-- **Scalability**: Handles hundreds of documents efficiently
-- **Memory Usage**: Efficient in-memory vector storage
+The frontend is designed to be responsive, modern, and user-friendly, providing a seamless interface to the complex backend.
 
-### **AI Performance**
-- **Model Capabilities**: GPT-4o-mini provides state-of-the-art understanding
-- **Context Awareness**: Maintains conversation context across sessions
-- **Response Quality**: High-quality educational responses with proper citations
-- **Fallback Reliability**: Guaranteed response even during AI service interruptions
+### 5.1 Technology Stack
 
----
+*   **Framework**: **Next.js 16**. Uses the App Router for modern routing and server components.
+*   **Library**: **React 19**. Utilization of the latest React features for efficient rendering.
+*   **Styling**: **TailwindCSS 4**. Utility-first CSS for rapid and consistent UI development.
+*   **Icons**: **Lucide React** for a clean, consistent icon set.
+*   **HTTP Client**: **Axios** for robust API communication.
 
-## 🔄 Data Flow Architecture
+### 5.2 Key Components
 
-### **Document Ingestion Flow**
-```
-PDF Upload → Text Extraction → Chunking → Embedding → Vector Index → Storage
-```
-
-### **Query Processing Flow**
-```
-User Question → Session Retrieval → Vector Search → Context Assembly → AI Processing → Response Formatting → User
-```
-
-### **Memory Management Flow**
-```
-User Message → Session ID → Memory Store → Conversation History → Context Window → AI Agent
-```
+*   **Chat Interface**: A dynamic chat window that renders messages. It supports Markdown rendering (via `react-markdown` and `remark-gfm`), enabling the display of rich text, code blocks, and formatted lists in AI responses.
+*   **Sidebar**: Displays the list of available/uploaded PDF documents, giving users visibility into the knowledge base.
+*   **File Upload**: Integration with the Backend's `/upload` endpoint, allowing users to add knowledge on the fly.
+*   **Loading States**: Visual feedback during message generation and file processing to ensure a responsive user experience.
 
 ---
 
-## 🛡️ Error Handling & Reliability
+## 6. Configuration and Environment
 
-### **Fault Tolerance**
-- **API Quota Management**: Automatic fallback to document search
-- **Network Resilience**: Graceful handling of API failures
-- **Data Integrity**: Safe vector store operations with backup mechanisms
-- **Input Validation**: Robust request validation and sanitization
+The application relies on environment variables for security and configuration management.
 
-### **Monitoring & Debugging**
-- **Health Checks**: System status monitoring endpoints
-- **Error Logging**: Comprehensive error tracking and reporting
-- **Performance Metrics**: Query timing and success rate monitoring
+*   **`.env` File**: Stores sensitive keys and operational flags.
+    *   `OPENAI_API_KEY`: Required for embeddings and chat generation.
+*   **`src/config/settings.py`**: A centralized configuration module that loads environment variables and applies defaults. It defines paths for data directories (`data/raw_pdfs`, `data/embeddings`) and model identifiers, ensuring that hardcoded values are minimized across the codebase.
 
----
+## 7. Conclusion
 
-## 🎯 Educational Features
-
-### **Learning Optimization**
-- **Comprehensive Responses**: Lists all types/categories from documents
-- **Source Citations**: Proper attribution for academic integrity
-- **Context Preservation**: Maintains educational context across conversations
-- **Structured Answers**: Numbered lists and clear organization
-
-### **Personalization**
-- **Session-based Learning**: Adapts to individual learning patterns
-- **Document-specific Responses**: Answers based on user's specific materials
-- **Memory-enhanced Understanding**: Builds on previous conversations
-
----
-
-## 📈 Scalability & Future Enhancements
-
-### **Current Limitations**
-- In-memory session storage (not persistent across server restarts)
-- Single PDF format support
-- Local FAISS storage (not distributed)
-
-### **Planned Improvements**
-- Database-backed session storage
-- Multi-format document support (Word, PowerPoint, etc.)
-- Distributed vector storage for larger datasets
-- Advanced analytics and learning insights
-
----
-
-## 🔧 Development & Deployment
-
-### **Development Setup**
-1. Python environment with requirements.txt dependencies
-2. Google API key configuration in .env file
-3. PDF documents in data/raw_pdfs/ directory
-4. Frontend setup with npm install
-
-### **Deployment Considerations**
-- Environment variable management for production
-- FAISS index backup and recovery procedures
-- API rate limiting and quota monitoring
-- Frontend build optimization for production
-
----
-
-## 📊 Technical Specifications Summary
-
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| AI Model | GPT-4o-mini | Latest | Language understanding & generation |
-| Embeddings | text-embedding-3-small | Latest | Document vectorization |
-| Vector DB | FAISS | 1.13.1 | Similarity search |
-| Backend | FastAPI | Latest | REST API server |
-| Frontend | Next.js | 16.0.10 | User interface |
-| PDF Processing | PyMuPDF | Latest | Document extraction |
-| Memory | In-Memory | Custom | Session management |
-
----
-
-**Report Generated**: December 20, 2025  
-**Project Version**: 1.0.0  
-**Architecture**: RAG-based AI Tutoring System
+The AI Tutor project successfully integrates state-of-the-art NLP technologies into a practical, usable application. By combining the speed of FAISS, the accuracy of OpenAI's embeddings, and the flexibility of LangChain, it delivers a powerful tool for document interrogation. The clear separation of concerns between the frontend and backend ensures that the system is maintainable and ready for future enhancements, such as switching vector stores or upgrading LLM models.
