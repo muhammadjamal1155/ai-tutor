@@ -6,6 +6,7 @@ from langchain_core.output_parsers import StrOutputParser
 from src.config.settings import config
 from src.rag.vector_store import RAGPipeline
 from src.memory.memory_manager import BaseMemoryManager, InMemoryHistoryManager
+from src.memory.postgres_manager import PostgresHistoryManager
 
 def format_docs(docs):
     """Enhanced document formatting to preserve all content and improve comprehension."""
@@ -28,7 +29,16 @@ class TutorAgent:
         self.retriever = self.rag.get_retriever(k=12)  # Get more documents for comprehensive answers
         
         # Dependency Injection (DIP)
-        self.memory_manager = memory_manager or InMemoryHistoryManager()
+        if memory_manager:
+            self.memory_manager = memory_manager
+        elif config.DATABASE_URL:
+            # Use Supabase/Postgres if URL is available
+            print("Using Persistent Postgres Memory (Supabase).")
+            self.memory_manager = PostgresHistoryManager(config.DATABASE_URL)
+        else:
+            # Fallback to In-Memory
+            print("Using In-Memory History (Volatile).")
+            self.memory_manager = InMemoryHistoryManager()
         
         # System Prompt (comprehensive with focus on listing all types/categories)
         system_prompt = (
@@ -80,7 +90,7 @@ class TutorAgent:
             self.memory_manager.get_session_history,
             input_messages_key="input",
             history_messages_key="chat_history",
-            output_messages_key="answer", # StrOutputParser returns the string directly as output
+            # output_messages_key is NOT needed when the chain returns a string (StrOutputParser)
         )
 
     def ask(self, question: str, session_id: str = "default_session"):
@@ -114,7 +124,6 @@ class TutorAgent:
             self.memory_manager.get_session_history,
             input_messages_key="input",
             history_messages_key="chat_history",
-            output_messages_key="answer",
         )
         print("Retriever refreshed successfully.")
 

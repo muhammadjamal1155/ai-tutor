@@ -41,6 +41,10 @@ class Config:
     # Model Config
     MODEL_NAME = "gpt-4o-mini"
     EMBEDDING_MODEL = "text-embedding-3-small"
+    
+    # Database Config
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 config = Config()
 

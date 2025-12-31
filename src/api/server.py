@@ -15,6 +15,8 @@ app = FastAPI(title="AI Tutor API", version="1.0.0")
 tutor_agent = None
 init_error = None
 
+from typing import List, Dict, Any
+
 # Request Models
 class ChatRequest(BaseModel):
     message: str
@@ -24,6 +26,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     mode: str = "ai"  # "ai" or "document_only"
+    sources: List[Dict[str, Any]] = []
 
 @app.on_event("startup")
 async def startup_event():
@@ -72,8 +75,35 @@ async def chat(request: ChatRequest):
     
     # Try AI mode first
     try:
-        response = tutor_agent.ask(request.message, session_id=request.session_id)
-        return ChatResponse(answer=response, mode="ai")
+        # Response is now a dictionary containing 'answer' and 'context' (sources)
+        response_data = tutor_agent.ask(request.message, session_id=request.session_id)
+        
+        answer_text = ""
+        sources = []
+        
+        if isinstance(response_data, dict):
+            answer_text = response_data.get("answer", "")
+            # Extract sources from context documents
+            context_docs = response_data.get("context", [])
+            # If context is a string (formatted), we can't extract cleanly, but usually it's list of Docs
+            # In our new implementation, we will ensure it's a list of Docs or we parse it
+             
+            # Actually, let's make sure context is passed as original docs in tutor.py
+            # If context is string, we might need to adjust tutor.py first.
+            # Assuming tutor.py returns list of Documents in 'context_raw' or similar?
+            # Let's adjust this to assume response_data has 'sources' formatted list
+            
+            # Temporary: if logic in tutor.py isn't updated yet to return dict, handle string
+            pass 
+        else:
+            answer_text = str(response_data)
+
+        # We will fully update this logic after updating tutor.py to return the structured dict.
+        # For now, let's assuming tutor.py returns the dict with 'sources' key prepared.
+        
+        sources = response_data.get("sources", []) if isinstance(response_data, dict) else []
+        
+        return ChatResponse(answer=answer_text, mode="ai", sources=sources)
     except Exception as e:
         error_str = str(e)
         print(f"Error processing chat request: {e}")
