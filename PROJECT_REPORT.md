@@ -29,7 +29,7 @@ graph LR
 *   **Frontend**: Handles user interactions, chat history display, and file uploads. Built with Next.js 16 and React 19, styled with TailwindCSS.
 *   **Backend**: Manages API endpoints, handles business logic, and orchestrates the AI operations. Built with FastAPI.
 *   **RAG Engine**: Performs document ingestion, text splitting, embedding generation, and semantic search. Powered by LangChain.
-*   **Storage**: Uses the local file system for raw PDFs and FAISS (Facebook AI Similarity Search) for storing vector embeddings.
+*   **Storage**: Uses the local file system for raw PDFs, FAISS for vector embeddings, and **Supabase (PostgreSQL)** for persistent chat history.
 
 ---
 
@@ -101,9 +101,11 @@ The ingestion process enables the system to "learn" new documents.
 ### 4.4 Retrieval and Generation
 
 When a user asks a question:
-1.  **Retrieve**: The user's query is embedded, and FAISS performs a similarity search (`k=8` chunks) to find the most relevant text segments.
-2.  **Augment**: These retrieved segments are formatted into a context block.
-3.  **Generate**: A prompt containing both the user's question and the retrieved context is sent to the LLM (**`gpt-4o-mini`**). The LLM synthesizes an answer based *only* on the provided context, reducing hallucinations.
+1.  **Query Expansion**: The system first generates multiple variations of the user's query (using the LLM) to capture synonyms and related terms, improving recall.
+2.  **Retrieve**: FAISS performs a similarity search for all generated queries to find the most relevant text segments.
+3.  **Augment**: These retrieved segments are formatted into a context block.
+4.  **Generate**: A prompt containing the user's question and the context is sent to the LLM (**`gpt-4o-mini`**).
+5.  **Citations**: The backend returns the source filename and a snippet for every document used in the answer, providing transparency.
 
 ---
 
@@ -121,7 +123,7 @@ The frontend is designed to be responsive, modern, and user-friendly, providing 
 
 ### 5.2 Key Components
 
-*   **Chat Interface**: A dynamic chat window that renders messages. It supports Markdown rendering (via `react-markdown` and `remark-gfm`), enabling the display of rich text, code blocks, and formatted lists in AI responses.
+*   **Chat Interface**: A dynamic chat window that renders messages. It supports Markdown and displays **Citation Highlights** (sources) below AI responses.
 *   **Sidebar**: Displays the list of available/uploaded PDF documents, giving users visibility into the knowledge base.
 *   **File Upload**: Integration with the Backend's `/upload` endpoint, allowing users to add knowledge on the fly.
 *   **Loading States**: Visual feedback during message generation and file processing to ensure a responsive user experience.
@@ -134,6 +136,7 @@ The application relies on environment variables for security and configuration m
 
 *   **`.env` File**: Stores sensitive keys and operational flags.
     *   `OPENAI_API_KEY`: Required for embeddings and chat generation.
+    *   `DATABASE_URL`: Connection string for the Supabase PostgreSQL database (used for chat history).
 *   **`src/config/settings.py`**: A centralized configuration module that loads environment variables and applies defaults. It defines paths for data directories (`data/raw_pdfs`, `data/embeddings`) and model identifiers, ensuring that hardcoded values are minimized across the codebase.
 
 ## 7. Conclusion
