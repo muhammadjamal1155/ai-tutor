@@ -7,6 +7,7 @@ from src.config.settings import config
 from src.rag.vector_store import RAGPipeline
 from src.memory.memory_manager import BaseMemoryManager, InMemoryHistoryManager
 from src.memory.postgres_manager import PostgresHistoryManager
+import os
 
 def format_docs(docs):
     """Enhanced document formatting to preserve all content and improve comprehension."""
@@ -66,19 +67,10 @@ class TutorAgent:
             ]
         )
         
-        # Construct Chain using pure LCEL (No 'create_retrieval_chain' dependency)
-        # 1. Retrieve context
-        # 2. Format context
-        # 3. Pass through input and history
-        # 4. Generate answer
-        
-        # We need a chain that accepts 'input' and 'chat_history'
-        # The retriever needs 'input'.
-        
+        # Construct Chain using pure LCEL
+        # We accept 'input' and 'context' from the caller (ask method)
         rag_chain = (
-            RunnablePassthrough.assign(
-                context=lambda x: format_docs(self.retriever.invoke(x["input"]))
-            )
+            RunnablePassthrough()
             | self.prompt
             | self.llm
             | StrOutputParser()
@@ -90,18 +82,86 @@ class TutorAgent:
             self.memory_manager.get_session_history,
             input_messages_key="input",
             history_messages_key="chat_history",
-            # output_messages_key is NOT needed when the chain returns a string (StrOutputParser)
         )
+
+    def generate_queries(self, original_query: str):
+        """Generate variations of the query to potentially increase recall."""
+        # Simple prompting for query expansion
+        prompt = (
+            f"You are an AI assistant. Generate 3 different search queries based on the user question "
+            f"to retrieve comprehensive information from a document knowledge base.\n"
+            f"Original question: {original_query}\n"
+            f"Output ONLY the 3 queries separated by newlines."
+        )
+        try:
+            response = self.llm.invoke(prompt)
+            # Handle response being either AIMessage or string
+            content = response.content if hasattr(response, 'content') else str(response)
+            queries = [q.strip() for q in content.split('\\n') if q.strip()]
+            final_queries = []
+            for q in queries:
+                 final_queries.append(q)
+            return final_queries[:3]
+        except Exception as e:
+            print(f"Query expansion failed: {e}")
+            return [original_query]
 
     def ask(self, question: str, session_id: str = "default_session"):
         """Ask a question to the AI Tutor with memory."""
-        # For RunnableWithMessageHistory wrapping a chain that returns a string, 
-        # the output is just the result.
+        
+        # 1. Retrieval (Enhanced with optional expansion)
+        # We manually retrieve here so we can return the sources
+        
+        # Step A: Expansion
+        search_queries = [question]
+        if len(question.split()) > 2:
+            print(f"Expanding query: {question}")
+            expanded = self.generate_queries(question)
+            if expanded:
+                print(f"Expanded queries: {expanded}")
+                search_queries.extend(expanded)
+        
+        # Step B: Multi-query Retrieval
+        all_docs = []
+        seen = set()
+        for q in search_queries:
+            docs = self.retriever.invoke(q)
+            for doc in docs:
+                # Content hash to deduplicate
+                key = doc.page_content[:50]
+                if key not in seen:
+                    seen.add(key)
+                    all_docs.append(doc)
+        
+        # Limit total docs (top 15)
+        unique_docs = all_docs[:15]
+        
+        # Format Context
+        formatted_context = format_docs(unique_docs)
+        
+        # Invoke Chain
         response_text = self.conversational_rag_chain.invoke(
-            {"input": question},
+            {"input": question, "context": formatted_context},
             config={"configurable": {"session_id": session_id}}
         )
-        return response_text
+        
+        # Prepare Sources
+        sources = []
+        for i, doc in enumerate(unique_docs):
+            src = doc.metadata.get('source', 'Unknown')
+            # Extract just filename if path
+            filename = os.path.basename(src) if src else 'Unknown'
+            # Check if source already added
+            if not any(s['source'] == filename for s in sources):
+                 sources.append({
+                    "source": filename,
+                    "content": doc.page_content[:200] + "..." # Snippet
+                })
+            
+        return {
+            "answer": response_text,
+            "sources": sources[:5] # Top 5 distinct sources
+        }
 
     def refresh_retriever(self):
         """Reload the retriever with updated index (after new document upload)."""
@@ -109,11 +169,9 @@ class TutorAgent:
         self.rag = RAGPipeline()
         self.retriever = self.rag.get_retriever(k=12)  # Get more documents for comprehensive answers
         
-        # Rebuild the chain with new retriever
+        # Rebuild the chain with new retriever (logic same as init)
         rag_chain = (
-            RunnablePassthrough.assign(
-                context=lambda x: format_docs(self.retriever.invoke(x["input"]))
-            )
+            RunnablePassthrough()
             | self.prompt
             | self.llm
             | StrOutputParser()

@@ -244,7 +244,11 @@ export default function Home() {
         }
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: response.data.answer }]);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: response.data.answer,
+        sources: response.data.sources
+      }]);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);

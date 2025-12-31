@@ -54,6 +54,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, message
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {msg.content}
                                     </ReactMarkdown>
+
+                                    {/* Sources Section */}
+                                    {msg.sources && msg.sources.length > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-gray-700">
+                                            <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Sources</p>
+                                            <div className="space-y-2">
+                                                {msg.sources.map((source, i) => (
+                                                    <div key={i} className="bg-gray-900/50 p-2.5 rounded border border-gray-700/50 text-sm">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <FileText className="w-3.5 h-3.5 text-blue-400" />
+                                                            <span className="font-medium text-blue-200 text-xs">{source.source}</span>
+                                                        </div>
+                                                        <p className="text-gray-400 text-xs line-clamp-2 italic">"{source.content.trim()}"</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
